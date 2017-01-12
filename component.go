@@ -73,8 +73,13 @@ func SH(name, cmd string, args ...string) *ShellComponent {
 		})
 }
 
-func (c *ShellComponent) WithBG(bg bool) *ShellComponent {
-	c.bg = bg
+func (c *ShellComponent) BG() *ShellComponent {
+	c.bg = true
+	return c
+}
+
+func (c *ShellComponent) FG() *ShellComponent {
+	c.bg = false
 	return c
 }
 

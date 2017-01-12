@@ -9,7 +9,7 @@ func WalkerDev() gestalt.Component {
 	g := gestalt.NewGroup("walker-dev")
 	g.AddChild(gestalt.SH("cleanup", "echo", "cleaning..."))
 	g.AddChild(
-		gestalt.SH("start", "while true; do echo .; sleep 1; done").WithBG(true)).
+		gestalt.SH("start", "while true; do echo .; sleep 1; done").BG()).
 		AddChild(g.AddChild(gestalt.SH("ping", "sleep", "1")))
 	return g
 }
@@ -49,9 +49,16 @@ func LeaderSuite() gestalt.Component {
 	return s
 }
 
+func ErrSuite() gestalt.Component {
+	s := gestalt.NewSuite("test")
+	s.AddChild(gestalt.SH("err", "echo", "hello", "1>&2"))
+	return s
+}
+
 func main() {
 	logrus.SetLevel(logrus.DebugLevel)
 	s := gestalt.NewSuite("walker")
+	s.AddChild(ErrSuite())
 	s.AddChild(FarmSuite())
 	s.AddChild(LeaderSuite())
 	if err := gestalt.Run(s); err != nil {
