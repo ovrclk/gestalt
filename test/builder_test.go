@@ -1,31 +1,31 @@
 package test
 
 import (
+	"os"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt"
 )
 
-func buildWalker() gestalt.Component {
+func TestBG(t *testing.T) {
 	g := gestalt.RootBuilder()
-	return g.Group("walker-dev").
-		Run(g.SH("cleanup", "echo", "cleaning")).
-		Run(g.SH("start", "while true; do echo .; sleep 1; done").BG().
-			Run(g.SH("ping", "sleep", "1")))
+	gestalt.Run(
+		g.Suite("walker-dev").
+			Run(g.SH("cleanup", "echo", "cleaning")).
+			Run(
+				g.Group("server").
+					Run(g.SH("start", "while true; do echo .; sleep 1; done").BG()).
+					Run(g.SH("ping", "sleep", "1"))).
+			Run(g.SH("okay", "sleep 1")).
+			Build())
 }
 
-func withVars() gestalt.Component {
-	g := gestalt.RootBuilder()
-	return g.Group("walker-dev").
-		Run(g.SH("cleanup", "echo", "cleaning")).
-		Run(g.SH("start", "while true; do echo .; sleep 1; done").BG().
-			Run(g.SH("ping", "sleep", "1"))).
-		Exports("cleanup.foo").
-		ExportsAs("start.bar", "baz").
-		Requires("host").
-		Connects("host","start.ping.host").
+func TestParse(t *testing.T) {
+
 }
 
-func TestWalker(t *testing.T) {
-	gestalt.Run(ruildWalker())
+func TestMain(m *testing.M) {
+	logrus.SetLevel(logrus.DebugLevel)
+	os.Exit(m.Run())
 }

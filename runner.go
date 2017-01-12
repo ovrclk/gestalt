@@ -24,6 +24,7 @@ type RunCtx interface {
 	Context() context.Context
 	Logger() logrus.FieldLogger
 	Values() ResultValues
+	Run(c Component) error
 }
 
 type Runner interface {
@@ -123,7 +124,12 @@ func (r *runner) Values() ResultValues {
 }
 
 func (r *runner) cloneFor(c Component) *runner {
-	name := fmt.Sprintf("%v/%v", r.name, c.Name())
+
+	name := r.name
+	if cname := c.Name(); cname != "" {
+		name = fmt.Sprintf("%v/%v", name, cname)
+	}
+
 	ctx, cancel := context.WithCancel(r.ctx)
 
 	child := &runner{
@@ -132,6 +138,7 @@ func (r *runner) cloneFor(c Component) *runner {
 		logger: r.logger.WithField("name", name),
 		name:   name,
 	}
+
 	r.children = append(r.children, child)
 
 	if c.IsTerminal() {

@@ -3,7 +3,6 @@ package gestalt
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -55,8 +54,6 @@ type ShellComponent struct {
 	Args []string
 	Env  []string
 
-	bg bool
-
 	fn ShellHandler
 }
 
@@ -80,16 +77,6 @@ func SH(name, cmd string, args ...string) *ShellComponent {
 			"-c",
 			strings.Join(append([]string{cmd}, args...), " "),
 		})
-}
-
-func (c *ShellComponent) BG() *ShellComponent {
-	c.bg = true
-	return c
-}
-
-func (c *ShellComponent) FG() *ShellComponent {
-	c.bg = false
-	return c
 }
 
 func (c *ShellComponent) FN(fn ShellHandler) *ShellComponent {
@@ -125,19 +112,11 @@ func (c *ShellComponent) Build(bctx BuildCtx) Runable {
 		go logStream(stdout, rctx.Logger().Debug, buf)
 		go logStream(stderr, rctx.Logger().Error, nil)
 
-		if c.bg {
-			return ResultRunning(func() {
-				if err := cmd.Wait(); err != nil {
-					if !expectedExecError(err, rctx.Context()) {
-						rctx.Logger().WithError(err).Error("command failed")
-					}
-				}
-			})
-		}
-
 		if err := cmd.Wait(); err != nil {
-			rctx.Logger().WithError(err).Error("command failed")
-			return ResultError(err)
+			if !expectedExecError(err, rctx) {
+				rctx.Logger().WithError(err).Error("command failed")
+				return ResultError(err)
+			}
 		}
 
 		if c.copyStdout() {
@@ -153,7 +132,7 @@ func (c *ShellComponent) Build(bctx BuildCtx) Runable {
 }
 
 func (c *ShellComponent) copyStdout() bool {
-	return c.fn != nil && !c.bg
+	return c.fn != nil
 }
 
 func logStream(reader io.ReadCloser, log func(fmt ...interface{}), b *bytes.Buffer) {
@@ -174,10 +153,10 @@ func logStream(reader io.ReadCloser, log func(fmt ...interface{}), b *bytes.Buff
 }
 
 // Fail silently if killed due to context being cancelled.
-func expectedExecError(err error, ctx context.Context) bool {
-	if exiterr, ok := err.(*exec.ExitError); ok && ctx != nil {
+func expectedExecError(err error, rctx RunCtx) bool {
+	if exiterr, ok := err.(*exec.ExitError); ok && rctx.Context().Err() != nil {
 		if wstatus, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			if syscall.Signal(wstatus&0x7f) == syscall.SIGKILL {
+			if wstatus.Signal() == syscall.SIGKILL {
 				return true
 			}
 		}
@@ -186,34 +165,21 @@ func expectedExecError(err error, ctx context.Context) bool {
 }
 
 type RetryComponent struct {
+	component
 	child Component
 	tries int
 	delay time.Duration
 }
 
 func (c *RetryComponent) Name() string {
-	return c.child.Name()
-}
-
-func (c *RetryComponent) Children() []Component {
-	return []Component{c.child}
-}
-
-func (c *RetryComponent) IsTerminal() bool {
-	return false
-}
-
-func (c *RetryComponent) AddChild(child Component) Component {
-	return child
+	return ""
 }
 
 func (c *RetryComponent) Build(bctx BuildCtx) Runable {
-	child := c.child.Build(bctx)
 	return func(rctx RunCtx) Result {
 		for i := 0; i < c.tries; i++ {
-			result := child(rctx)
-			if result.State() != RunStateError {
-				return result
+			if err := rctx.Run(c.child); err == nil {
+				return ResultSuccess()
 			}
 			time.Sleep(c.delay)
 		}
@@ -222,34 +188,23 @@ func (c *RetryComponent) Build(bctx BuildCtx) Runable {
 }
 
 type BGComponent struct {
+	component
 	child Component
 }
 
 func (c *BGComponent) Name() string {
-	return c.child.Name()
-}
-
-func (c *BGComponent) AddChild(child Component) Component {
-	return child
-}
-
-func (c *BGComponent) Children() []Component {
-	return []Component{c.child}
-}
-
-func (c *BGComponent) IsTerminal() bool {
-	return false
+	return ""
 }
 
 func (c *BGComponent) Build(bctx BuildCtx) Runable {
-	child := c.child.Build(bctx)
 	return func(rctx RunCtx) Result {
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			result := child(rctx)
-			result.Wait()
+			if err := rctx.Run(c.child); err != nil {
+				rctx.Logger().WithError(err).Errorf("BG")
+			}
 		}()
 		return ResultRunning(wg.Wait)
 	}
