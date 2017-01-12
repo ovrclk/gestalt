@@ -17,14 +17,14 @@ func WalkerDev() gestalt.Component {
 func CreateFarm(name string) gestalt.Component {
 	g := gestalt.NewGroup("create-farm")
 	g.AddChild(gestalt.SH("create", "echo", "walker farms:create", name))
-	g.AddChild(gestalt.SH("check", "echo", "walker farms"))
+	g.AddChild(gestalt.SH("test", "echo", "walker farms"))
 	return g
 }
 
 func RemoveFarm(name string) gestalt.Component {
 	g := gestalt.NewGroup("remove-farm")
 	g.AddChild(gestalt.SH("remove", "echo", "walker farms:down", name))
-	g.AddChild(gestalt.SH("check", "echo", "walker farms"))
+	g.AddChild(gestalt.SH("test", "echo", "walker farms"))
 	return g
 }
 

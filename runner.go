@@ -90,7 +90,7 @@ func (r *result) Values() ResultValues {
 }
 
 func (r *result) Wait() {
-	if r.state != RunStateRunning && r.wait != nil {
+	if r.state == RunStateRunning && r.wait != nil {
 		r.wait()
 	}
 }
@@ -147,27 +147,65 @@ func (r *runner) Wait() {
 }
 
 func (r *runner) Run(c Component) error {
-	err := r.cloneFor(c).runComponent(c)
-	if c.IsTerminal() || err != nil {
-		r.cancel()
-		r.Wait()
+	return r.cloneFor(c).doRun(c)
+
+}
+
+func (r *runner) doRun(c Component) error {
+	r.Logger().Infof("begin")
+
+	err := r.runAll(c)
+
+	if err != nil {
+		r.stop()
+		r.Logger().WithError(err).Errorf("end")
 		return err
+	}
+
+	if c.IsTerminal() {
+		r.stop()
+	}
+
+	r.Logger().Infof("end")
+	return nil
+}
+
+func (r *runner) stop() {
+	r.cancel()
+	r.Wait()
+}
+
+func (r *runner) runAll(c Component) error {
+	if err := r.buildAndRun(c); err != nil {
+		return err
+	}
+	for _, child := range c.Children() {
+		if err := r.Run(child); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (r *runner) runComponent(c Component) error {
-	r.Logger().Infof("start")
+func (r *runner) buildAndRun(c Component) error {
 	runable := c.Build(r)
+
+	if runable == nil {
+		return nil
+	}
+
+	r.Logger().Infof("start")
+
 	result := runable.Exec(r)
 	switch result.State() {
 	case RunStateComplete:
-		r.Logger().Debugf("complete")
+		r.Logger().Infof("complete")
 	case RunStateError:
 		r.Logger().WithError(result.Err()).Errorf("error")
 		return result.Err()
 	case RunStateRunning:
 		r.wg.Add(1)
+		r.Logger().Infof("background")
 		go func() {
 			defer r.wg.Done()
 			result.Wait()
@@ -177,11 +215,6 @@ func (r *runner) runComponent(c Component) error {
 		err := fmt.Errorf("Unknown state: %v", result.State())
 		r.Logger().WithError(err).Errorf("error")
 		return err
-	}
-	for _, child := range c.Children() {
-		if err := r.Run(child); err != nil {
-			return err
-		}
 	}
 	return nil
 }

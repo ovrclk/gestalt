@@ -9,7 +9,7 @@ func NewSuite(name string) *Suite {
 }
 
 func (s *Suite) Build(bctx BuildCtx) *Runable {
-	return NullRunable()
+	return nil
 }
 
 func (s *Suite) IsTerminal() bool {
@@ -24,6 +24,10 @@ func NewGroup(name string) *Group {
 	return &Group{component{name: name}}
 }
 
+func (g *Group) IsTerminal() bool {
+	return false
+}
+
 func (g *Group) Build(bctx BuildCtx) *Runable {
-	return NullRunable()
+	return nil
 }

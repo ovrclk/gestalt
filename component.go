@@ -1,8 +1,11 @@
 package gestalt
 
 import (
+	"context"
+	"io"
 	"os/exec"
 	"strings"
+	"syscall"
 )
 
 type Component interface {
@@ -96,32 +99,15 @@ func (c *ShellComponent) Build(bctx BuildCtx) *Runable {
 				return ResultError(err)
 			}
 
-			go func() {
-				buf := make([]byte, 80)
-				for {
-					n, err := stdout.Read(buf)
-					if err != nil {
-						break
-					}
-					rctx.Logger().Debug(string(buf[0:n]))
-				}
-			}()
-
-			go func() {
-				buf := make([]byte, 80)
-				for {
-					n, err := stderr.Read(buf)
-					if err != nil {
-						break
-					}
-					rctx.Logger().Error(string(buf[0:n]))
-				}
-			}()
+			go logStream(stdout, rctx.Logger().Debug)
+			go logStream(stderr, rctx.Logger().Error)
 
 			if c.bg {
 				return ResultRunning(func() {
 					if err := cmd.Wait(); err != nil {
-						rctx.Logger().WithError(err).Error("command failed")
+						if !expectedExecError(err, rctx.Context()) {
+							rctx.Logger().WithError(err).Error("command failed")
+						}
 					}
 				})
 			} else {
@@ -134,4 +120,28 @@ func (c *ShellComponent) Build(bctx BuildCtx) *Runable {
 			}
 		},
 	}
+}
+
+func logStream(reader io.ReadCloser, log func(fmt ...interface{})) {
+	buf := make([]byte, 80)
+	for {
+		n, err := reader.Read(buf)
+		if err != nil {
+			break
+		}
+
+		log(strings.TrimRight(string(buf[0:n]), "\n\r"))
+	}
+}
+
+// Fail silently if killed due to context being cancelled.
+func expectedExecError(err error, ctx context.Context) bool {
+	if exiterr, ok := err.(*exec.ExitError); ok && ctx != nil {
+		if wstatus, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+			if syscall.Signal(wstatus&0x7f) == syscall.SIGKILL {
+				return true
+			}
+		}
+	}
+	return false
 }
