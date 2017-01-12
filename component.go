@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 )
 
 type Component interface {
@@ -180,4 +183,74 @@ func expectedExecError(err error, ctx context.Context) bool {
 		}
 	}
 	return false
+}
+
+type RetryComponent struct {
+	child Component
+	tries int
+	delay time.Duration
+}
+
+func (c *RetryComponent) Name() string {
+	return c.child.Name()
+}
+
+func (c *RetryComponent) Children() []Component {
+	return []Component{c.child}
+}
+
+func (c *RetryComponent) IsTerminal() bool {
+	return false
+}
+
+func (c *RetryComponent) AddChild(child Component) Component {
+	return child
+}
+
+func (c *RetryComponent) Build(bctx BuildCtx) Runable {
+	child := c.child.Build(bctx)
+	return func(rctx RunCtx) Result {
+		for i := 0; i < c.tries; i++ {
+			result := child(rctx)
+			if result.State() != RunStateError {
+				return result
+			}
+			time.Sleep(c.delay)
+		}
+		return ResultError(fmt.Errorf("too many retries"))
+	}
+}
+
+type BGComponent struct {
+	child Component
+}
+
+func (c *BGComponent) Name() string {
+	return c.child.Name()
+}
+
+func (c *BGComponent) AddChild(child Component) Component {
+	return child
+}
+
+func (c *BGComponent) Children() []Component {
+	return []Component{c.child}
+}
+
+func (c *BGComponent) IsTerminal() bool {
+	return false
+}
+
+func (c *BGComponent) Build(bctx BuildCtx) Runable {
+	child := c.child.Build(bctx)
+	return func(rctx RunCtx) Result {
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			result := child(rctx)
+			result.Wait()
+		}()
+		return ResultRunning(wg.Wait)
+	}
 }
