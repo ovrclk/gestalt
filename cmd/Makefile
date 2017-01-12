@@ -1,4 +1,4 @@
-FILES := $(wildcard *.go cmd/*.go)
+FILES := $(wildcard *.go ../*.go)
 
 gestalt: $(FILES)
 	go build -o $@
