@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -29,19 +28,7 @@ type Runner interface {
 	RunCtx
 }
 
-type Runable struct {
-	Retries int
-	Timeout time.Duration
-	Exec    func(RunCtx) Result
-}
-
-func NullRunable() *Runable {
-	return &Runable{
-		Exec: func(bctx RunCtx) Result {
-			return ResultSuccess()
-		},
-	}
-}
+type Runable func(RunCtx) Result
 
 type RunState int
 
@@ -188,15 +175,15 @@ func (r *runner) runAll(c Component) error {
 }
 
 func (r *runner) buildAndRun(c Component) error {
-	runable := c.Build(r)
+	fn := c.Build(r)
 
-	if runable == nil {
+	if fn == nil {
 		return nil
 	}
 
 	r.Logger().Infof("start")
 
-	result := runable.Exec(r)
+	result := fn(r)
 	switch result.State() {
 	case RunStateComplete:
 		r.Logger().Infof("complete")

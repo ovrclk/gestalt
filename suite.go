@@ -8,7 +8,7 @@ func NewSuite(name string) *Suite {
 	return &Suite{component{name: name}}
 }
 
-func (s *Suite) Build(bctx BuildCtx) *Runable {
+func (s *Suite) Build(bctx BuildCtx) Runable {
 	return nil
 }
 
@@ -28,6 +28,6 @@ func (g *Group) IsTerminal() bool {
 	return false
 }
 
-func (g *Group) Build(bctx BuildCtx) *Runable {
+func (g *Group) Build(bctx BuildCtx) Runable {
 	return nil
 }
