@@ -1,6 +1,8 @@
 package gestalt
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"io"
 	"os/exec"
@@ -42,6 +44,8 @@ func (c *component) AddChild(child Component) Component {
 	return child
 }
 
+type ShellHandler func(*bufio.Reader, RunCtx) (ResultValues, error)
+
 type ShellComponent struct {
 	component
 	Path string
@@ -49,6 +53,8 @@ type ShellComponent struct {
 	Env  []string
 
 	bg bool
+
+	fn ShellHandler
 }
 
 func NewShellComponent(name string, path string, args []string) *ShellComponent {
@@ -83,6 +89,11 @@ func (c *ShellComponent) FG() *ShellComponent {
 	return c
 }
 
+func (c *ShellComponent) FN(fn ShellHandler) *ShellComponent {
+	c.fn = fn
+	return c
+}
+
 func (c *ShellComponent) Build(bctx BuildCtx) Runable {
 	return func(rctx RunCtx) Result {
 		cmd := exec.CommandContext(rctx.Context(), c.Path, c.Args...)
@@ -103,8 +114,13 @@ func (c *ShellComponent) Build(bctx BuildCtx) Runable {
 			return ResultError(err)
 		}
 
-		go logStream(stdout, rctx.Logger().Debug)
-		go logStream(stderr, rctx.Logger().Error)
+		var buf *bytes.Buffer
+		if c.copyStdout() {
+			buf = new(bytes.Buffer)
+		}
+
+		go logStream(stdout, rctx.Logger().Debug, buf)
+		go logStream(stderr, rctx.Logger().Error, nil)
 
 		if c.bg {
 			return ResultRunning(func() {
@@ -114,21 +130,38 @@ func (c *ShellComponent) Build(bctx BuildCtx) Runable {
 					}
 				}
 			})
-		} else {
-			if err := cmd.Wait(); err != nil {
-				rctx.Logger().WithError(err).Error("command failed")
-				return ResultError(err)
-			} else {
-				return ResultSuccess()
-			}
 		}
+
+		if err := cmd.Wait(); err != nil {
+			rctx.Logger().WithError(err).Error("command failed")
+			return ResultError(err)
+		}
+
+		if c.copyStdout() {
+			vals, err := c.fn(bufio.NewReader(buf), rctx)
+			if err != nil {
+				return NewResult(RunStateError, vals, err)
+			}
+			return NewResult(RunStateComplete, vals, nil)
+		}
+
+		return ResultSuccess()
 	}
 }
 
-func logStream(reader io.ReadCloser, log func(fmt ...interface{})) {
+func (c *ShellComponent) copyStdout() bool {
+	return c.fn != nil && !c.bg
+}
+
+func logStream(reader io.ReadCloser, log func(fmt ...interface{}), b *bytes.Buffer) {
 	buf := make([]byte, 80)
 	for {
 		n, err := reader.Read(buf)
+
+		if b != nil && n > 0 {
+			b.Write(buf[0:n])
+		}
+
 		if err != nil {
 			break
 		}

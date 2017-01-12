@@ -17,11 +17,13 @@ const (
 
 type BuildCtx interface {
 	Logger() logrus.FieldLogger
+	Values() ResultValues
 }
 
 type RunCtx interface {
 	Context() context.Context
 	Logger() logrus.FieldLogger
+	Values() ResultValues
 }
 
 type Runner interface {
@@ -89,6 +91,8 @@ type runner struct {
 	logger   logrus.FieldLogger
 	wg       sync.WaitGroup
 	children []*runner
+
+	vals ResultValues
 }
 
 func NewRunner() *runner {
@@ -98,6 +102,7 @@ func NewRunner() *runner {
 		ctx:    ctx,
 		cancel: cancel,
 		logger: logrus.StandardLogger(),
+		vals:   make(ResultValues),
 	}
 }
 
@@ -113,9 +118,14 @@ func (r *runner) Logger() logrus.FieldLogger {
 	return r.logger
 }
 
+func (r *runner) Values() ResultValues {
+	return r.vals
+}
+
 func (r *runner) cloneFor(c Component) *runner {
 	name := fmt.Sprintf("%v/%v", r.name, c.Name())
 	ctx, cancel := context.WithCancel(r.ctx)
+
 	child := &runner{
 		ctx:    ctx,
 		cancel: cancel,
@@ -123,6 +133,15 @@ func (r *runner) cloneFor(c Component) *runner {
 		name:   name,
 	}
 	r.children = append(r.children, child)
+
+	if c.IsTerminal() {
+		child.vals = make(ResultValues)
+		for k, v := range r.vals {
+			child.vals[k] = v
+		}
+	} else {
+		child.vals = r.vals
+	}
 	return child
 }
 
@@ -135,7 +154,6 @@ func (r *runner) Wait() {
 
 func (r *runner) Run(c Component) error {
 	return r.cloneFor(c).doRun(c)
-
 }
 
 func (r *runner) doRun(c Component) error {
@@ -187,6 +205,7 @@ func (r *runner) buildAndRun(c Component) error {
 	switch result.State() {
 	case RunStateComplete:
 		r.Logger().Infof("complete")
+		r.addVars(result.Values())
 	case RunStateError:
 		r.Logger().WithError(result.Err()).Errorf("error")
 		return result.Err()
@@ -204,4 +223,13 @@ func (r *runner) buildAndRun(c Component) error {
 		return err
 	}
 	return nil
+}
+
+func (r *runner) addVars(vals ResultValues) {
+	if vals != nil {
+		r.Logger().Debugf("results: %v", vals)
+		for k, v := range vals {
+			r.vals[k] = v
+		}
+	}
 }

@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt"
 )
@@ -55,12 +59,54 @@ func ErrSuite() gestalt.Component {
 	return s
 }
 
+func ParseSuite() gestalt.Component {
+	s := gestalt.NewSuite("parse")
+
+	{
+		fn := func(b *bufio.Reader, rctx gestalt.RunCtx) (gestalt.ResultValues, error) {
+			vals := make(gestalt.ResultValues)
+
+			line, _, err := b.ReadLine()
+
+			if err != nil {
+				return vals, err
+			}
+
+			fields := strings.Fields(string(line))
+
+			if len(fields) != 3 {
+				return vals, fmt.Errorf("invalid format")
+			}
+
+			vals["a"] = fields[0]
+			vals["b"] = fields[1]
+			vals["c"] = fields[2]
+
+			return vals, nil
+		}
+		s.AddChild(gestalt.SH("abc", "echo", "foo", "bar", "baz").FN(fn))
+	}
+
+	{
+		fn := func(b *bufio.Reader, rctx gestalt.RunCtx) (gestalt.ResultValues, error) {
+			rctx.Logger().Debugf("captured vals: %v", rctx.Values())
+			return nil, nil
+		}
+		s.AddChild(gestalt.SH("bca", "echo", "whatever").FN(fn))
+	}
+
+	return s
+}
+
 func main() {
 	logrus.SetLevel(logrus.DebugLevel)
 	s := gestalt.NewSuite("walker")
-	s.AddChild(ErrSuite())
-	s.AddChild(FarmSuite())
-	s.AddChild(LeaderSuite())
+	s.AddChild(ParseSuite())
+	/*
+		s.AddChild(ErrSuite())
+		s.AddChild(FarmSuite())
+		s.AddChild(LeaderSuite())
+	*/
 	if err := gestalt.Run(s); err != nil {
 		logrus.Errorf("Error running: %v", err)
 	}
