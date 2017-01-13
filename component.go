@@ -1,14 +1,8 @@
 package gestalt
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
-	"io"
-	"os/exec"
-	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -17,12 +11,19 @@ type Component interface {
 	IsTerminal() bool
 	Build(BuildCtx) Runable
 	PassThrough() bool
+
+	Exports(...string) Component
+	Imports(...string) Component
+	Requires(...string) Component
 }
 
 type CompositeComponent interface {
 	Component
 	Children() []Component
 	Run(Component) CompositeComponent
+	ExportsFrom(...string) CompositeComponent
+	ImportsFor(...string) CompositeComponent
+	RequiresFor(...string) CompositeComponent
 }
 
 type WrapComponent interface {
@@ -31,83 +32,131 @@ type WrapComponent interface {
 	Run(Component) Component
 }
 
-type component struct {
+type C struct {
 	name     string
 	terminal bool
 	build    func(BuildCtx) Runable
 }
 
-type compositeComponent struct {
-	component
+type CC struct {
+	C
 	children []Component
 }
 
-type wrapComponent struct {
-	component
+type WC struct {
+	C
 	child Component
 }
 
-func (c *component) Name() string {
+func (c *C) Name() string {
 	return c.name
 }
 
-func (c *component) IsTerminal() bool {
+func (c *C) IsTerminal() bool {
 	return c.terminal
 }
 
-func (c *component) PassThrough() bool {
+func (c *C) PassThrough() bool {
 	return c.name == ""
 }
 
-func (c *component) Build(bctx BuildCtx) Runable {
+func (c *C) Exports(names ...string) Component {
+	return c
+}
+func (c *C) Imports(names ...string) Component {
+	return c
+}
+func (c *C) Requires(names ...string) Component {
+	return c
+}
+
+func (c *C) Build(bctx BuildCtx) Runable {
 	if c.build == nil {
 		return nil
 	}
 	return c.build(bctx)
 }
 
-func (c *compositeComponent) Children() []Component {
+func (c *CC) Children() []Component {
 	return c.children
 }
 
-func (c *compositeComponent) Run(child Component) CompositeComponent {
+func (c *CC) Run(child Component) CompositeComponent {
 	c.children = append(c.children, child)
 	return c
 }
 
-func (c *wrapComponent) Child() Component {
+func (c *CC) Exports(names ...string) Component {
+	c.C.Exports(names...)
+	return c
+}
+func (c *CC) Imports(names ...string) Component {
+	c.C.Imports(names...)
+	return c
+}
+func (c *CC) Requires(names ...string) Component {
+	c.C.Requires(names...)
+	return c
+}
+
+func (c *CC) ExportsFrom(names ...string) CompositeComponent {
+	return c
+}
+
+func (c *CC) ImportsFor(names ...string) CompositeComponent {
+	return c
+}
+
+func (c *CC) RequiresFor(names ...string) CompositeComponent {
+	return c
+}
+
+func (c *WC) Child() Component {
 	return c.child
 }
 
-func (c *wrapComponent) Run(child Component) Component {
+func (c *WC) Exports(names ...string) Component {
+	c.C.Exports(names...)
+	return c
+}
+func (c *WC) Imports(names ...string) Component {
+	c.C.Imports(names...)
+	return c
+}
+func (c *WC) Requires(names ...string) Component {
+	c.C.Requires(names...)
+	return c
+}
+
+func (c *WC) Run(child Component) Component {
 	c.child = child
 	return c
 }
 
-func NewComponent(name string, fn func(BuildCtx) Runable) Component {
-	return &component{name: name, build: fn}
+func NewComponent(name string, fn func(BuildCtx) Runable) *C {
+	return &C{name: name, build: fn}
 }
 
-func NewComponentR(name string, fn func(RunCtx) Result) Component {
+func NewComponentR(name string, fn func(RunCtx) Result) *C {
 	return NewComponent(name, func(bctx BuildCtx) Runable {
 		return fn
 	})
 }
 
-func NewSuite(name string) CompositeComponent {
-	return &compositeComponent{
-		component: component{name: name, terminal: true},
+func NewSuite(name string) *CC {
+	return &CC{
+		C: C{name: name, terminal: true},
 	}
 }
 
-func NewGroup(name string) CompositeComponent {
-	return &compositeComponent{
-		component: component{name: name, terminal: false},
+func NewGroup(name string) *CC {
+	return &CC{
+		C: C{name: name, terminal: false},
 	}
 }
 
-func NewWrapComponent(fn func(WrapComponent, RunCtx) Result) WrapComponent {
-	c := &wrapComponent{}
+func NewWrapComponent(fn func(WrapComponent, RunCtx) Result) *WC {
+	c := &WC{}
 	c.build = func(bctx BuildCtx) Runable {
 		return func(rctx RunCtx) Result {
 			return fn(c, rctx)
@@ -116,7 +165,7 @@ func NewWrapComponent(fn func(WrapComponent, RunCtx) Result) WrapComponent {
 	return c
 }
 
-func NewRetryComponent(tries int, delay time.Duration) WrapComponent {
+func NewRetryComponent(tries int, delay time.Duration) *WC {
 	return NewWrapComponent(
 		func(c WrapComponent, rctx RunCtx) Result {
 			for i := 0; i < tries; i++ {
@@ -129,7 +178,7 @@ func NewRetryComponent(tries int, delay time.Duration) WrapComponent {
 		})
 }
 
-func NewBGComponent() WrapComponent {
+func NewBGComponent() *WC {
 	return NewWrapComponent(func(c WrapComponent, rctx RunCtx) Result {
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -141,122 +190,4 @@ func NewBGComponent() WrapComponent {
 		}()
 		return ResultRunning(wg.Wait)
 	})
-}
-
-type ShellHandler func(*bufio.Reader, RunCtx) (ResultValues, error)
-
-type ShellComponent struct {
-	component
-	Path string
-	Args []string
-	Env  []string
-
-	fn ShellHandler
-}
-
-func NewShellComponent(name string, path string, args []string) *ShellComponent {
-	return &ShellComponent{
-		component: component{name: name},
-		Path:      path,
-		Args:      args,
-	}
-}
-
-func EXEC(name, path string, args ...string) *ShellComponent {
-	return NewShellComponent(name, path, args)
-}
-
-func SH(name, cmd string, args ...string) *ShellComponent {
-	return NewShellComponent(
-		name,
-		"/bin/sh",
-		[]string{
-			"-c",
-			strings.Join(append([]string{cmd}, args...), " "),
-		})
-}
-
-func (c *ShellComponent) FN(fn ShellHandler) *ShellComponent {
-	c.fn = fn
-	return c
-}
-
-func (c *ShellComponent) Build(bctx BuildCtx) Runable {
-	return func(rctx RunCtx) Result {
-		cmd := exec.CommandContext(rctx.Context(), c.Path, c.Args...)
-
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return ResultError(err)
-		}
-
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			return ResultError(err)
-		}
-
-		rctx.Logger().Debugf("running %v %v", cmd.Path, cmd.Args)
-		if err := cmd.Start(); err != nil {
-			rctx.Logger().WithError(err).Errorf("error running %v", cmd.Path)
-			return ResultError(err)
-		}
-
-		var buf *bytes.Buffer
-		if c.copyStdout() {
-			buf = new(bytes.Buffer)
-		}
-
-		go logStream(stdout, rctx.Logger().Debug, buf)
-		go logStream(stderr, rctx.Logger().Error, nil)
-
-		if err := cmd.Wait(); err != nil {
-			if !expectedExecError(err, rctx) {
-				rctx.Logger().WithError(err).Error("command failed")
-				return ResultError(err)
-			}
-		}
-
-		if c.copyStdout() {
-			vals, err := c.fn(bufio.NewReader(buf), rctx)
-			if err != nil {
-				return NewResult(RunStateError, vals, err)
-			}
-			return NewResult(RunStateComplete, vals, nil)
-		}
-
-		return ResultSuccess()
-	}
-}
-
-func (c *ShellComponent) copyStdout() bool {
-	return c.fn != nil
-}
-
-func logStream(reader io.ReadCloser, log func(fmt ...interface{}), b *bytes.Buffer) {
-	buf := make([]byte, 80)
-	for {
-		n, err := reader.Read(buf)
-
-		if b != nil && n > 0 {
-			b.Write(buf[0:n])
-		}
-
-		if err != nil {
-			break
-		}
-
-		log(strings.TrimRight(string(buf[0:n]), "\n\r"))
-	}
-}
-
-// Fail silently if killed due to context being cancelled.
-func expectedExecError(err error, rctx RunCtx) bool {
-	if exiterr, ok := err.(*exec.ExitError); ok && rctx.Context().Err() != nil {
-		if wstatus, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			if wstatus.Signal() == syscall.SIGKILL {
-				return true
-			}
-		}
-	}
-	return false
 }

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/ovrclk/gestalt"
+	"github.com/ovrclk/gestalt/exec"
 )
 
 func Group(name string) gestalt.CompositeComponent {
@@ -26,10 +27,14 @@ func FN(name string, fn func(rctx gestalt.RunCtx) gestalt.Result) gestalt.Compon
 	return gestalt.NewComponentR(name, fn)
 }
 
-func SH(name, cmd string, args ...string) *gestalt.ShellComponent {
-	return gestalt.SH(name, cmd, args...)
+func SH(name, cmd string, args ...string) *exec.Cmd {
+	return exec.SH(name, cmd, args...)
 }
 
-func EXEC(name, cmd string, args ...string) *gestalt.ShellComponent {
-	return gestalt.EXEC(name, cmd, args...)
+func EXEC(name, cmd string, args ...string) *exec.Cmd {
+	return exec.EXEC(name, cmd, args...)
+}
+
+func P() exec.TextPipe {
+	return exec.P()
 }

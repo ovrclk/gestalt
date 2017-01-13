@@ -32,16 +32,23 @@ func TestParse(t *testing.T) {
 func TestVars(t *testing.T) {
 
 	producer := g.
+		//SH("producer", "echo", "${foo}", "${bar}", "baz").
 		SH("producer", "echo", "foo", "bar", "baz").
-		FN(g.P().Head().Capture("a", "b", "c"))
+		FN(g.P().Head().Capture("a", "b", "c")).
+		Requires("foo", "bar")
+		//Exports("a", "b", "c")
 
 	consumer := g.
-		FN("consumer", readFields(t))
+		FN("consumer", readFields(t)).
+		Requires("a", "b", "c")
 
-	gestalt.Run(
-		g.Suite("export-vars").
-			Run(producer).
-			Run(consumer))
+	suite := g.Suite("export-vars").
+		Run(producer).
+		Run(consumer).
+		ExportsFrom("producer").
+		RequiresFor("producer")
+
+	gestalt.Run(suite)
 }
 
 func readFields(t *testing.T) func(gestalt.RunCtx) gestalt.Result {
