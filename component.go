@@ -14,36 +14,122 @@ import (
 
 type Component interface {
 	Name() string
-	Children() []Component
-	AddChild(Component) Component
-	Build(BuildCtx) Runable
 	IsTerminal() bool
+	Build(BuildCtx) Runable
+}
+
+type CompositeComponent interface {
+	Component
+	Children() []Component
+	Run(Component) CompositeComponent
+}
+
+type WrapComponent interface {
+	Component
+	Child() Component
+	Run(Component) Component
 }
 
 type component struct {
 	name     string
+	terminal bool
+	build    func(BuildCtx) Runable
+}
+
+type compositeComponent struct {
+	component
 	children []Component
 }
 
-func NewComponent(name string) *component {
-	return &component{name: name}
+type wrapComponent struct {
+	component
+	child Component
 }
 
 func (c *component) Name() string {
 	return c.name
 }
 
-func (c *component) Children() []Component {
+func (c *component) IsTerminal() bool {
+	return c.terminal
+}
+
+func (c *component) Build(bctx BuildCtx) Runable {
+	if c.build == nil {
+		return nil
+	}
+	return c.build(bctx)
+}
+
+func (c *compositeComponent) Children() []Component {
 	return c.children
 }
 
-func (c *component) IsTerminal() bool {
-	return false
+func (c *compositeComponent) Run(child Component) CompositeComponent {
+	c.children = append(c.children, child)
+	return c
 }
 
-func (c *component) AddChild(child Component) Component {
-	c.children = append(c.children, child)
-	return child
+func (c *wrapComponent) Child() Component {
+	return c.child
+}
+
+func (c *wrapComponent) Run(child Component) Component {
+	c.child = child
+	return c
+}
+
+func NewSuite(name string) CompositeComponent {
+	return &compositeComponent{
+		component: component{name: name, terminal: true},
+	}
+}
+
+func NewGroup(name string) CompositeComponent {
+	return &compositeComponent{
+		component: component{name: name, terminal: false},
+	}
+}
+
+func NewWrapComponent(fn func(WrapComponent, RunCtx) Result) WrapComponent {
+	c := &wrapComponent{}
+	c.build = func(bctx BuildCtx) Runable {
+		return func(rctx RunCtx) Result {
+			return fn(c, rctx)
+		}
+	}
+	return c
+}
+
+func NewComponent(name string, fn func(BuildCtx) Runable) Component {
+	return &component{name: name, build: fn}
+}
+
+func NewRetryComponent(tries int, delay time.Duration) WrapComponent {
+	return NewWrapComponent(
+		func(c WrapComponent, rctx RunCtx) Result {
+			for i := 0; i < tries; i++ {
+				if err := rctx.Run(c.Child()); err == nil {
+					return ResultSuccess()
+				}
+				time.Sleep(delay)
+			}
+			return ResultError(fmt.Errorf("too many retries"))
+		})
+}
+
+func NewBGComponent() WrapComponent {
+	return NewWrapComponent(func(c WrapComponent, rctx RunCtx) Result {
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := rctx.Run(c.Child()); err != nil {
+				rctx.Logger().WithError(err).Errorf("BG")
+			}
+		}()
+		return ResultRunning(wg.Wait)
+	})
 }
 
 type ShellHandler func(*bufio.Reader, RunCtx) (ResultValues, error)
@@ -162,50 +248,4 @@ func expectedExecError(err error, rctx RunCtx) bool {
 		}
 	}
 	return false
-}
-
-type RetryComponent struct {
-	component
-	child Component
-	tries int
-	delay time.Duration
-}
-
-func (c *RetryComponent) Name() string {
-	return ""
-}
-
-func (c *RetryComponent) Build(bctx BuildCtx) Runable {
-	return func(rctx RunCtx) Result {
-		for i := 0; i < c.tries; i++ {
-			if err := rctx.Run(c.child); err == nil {
-				return ResultSuccess()
-			}
-			time.Sleep(c.delay)
-		}
-		return ResultError(fmt.Errorf("too many retries"))
-	}
-}
-
-type BGComponent struct {
-	component
-	child Component
-}
-
-func (c *BGComponent) Name() string {
-	return ""
-}
-
-func (c *BGComponent) Build(bctx BuildCtx) Runable {
-	return func(rctx RunCtx) Result {
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := rctx.Run(c.child); err != nil {
-				rctx.Logger().WithError(err).Errorf("BG")
-			}
-		}()
-		return ResultRunning(wg.Wait)
-	}
 }

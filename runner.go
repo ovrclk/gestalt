@@ -8,13 +8,6 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-const (
-	RunStateStopped RunState = iota
-	RunStateRunning
-	RunStateComplete
-	RunStateError
-)
-
 type BuildCtx interface {
 	Logger() logrus.FieldLogger
 	Values() ResultValues
@@ -33,58 +26,6 @@ type Runner interface {
 
 type Runable func(RunCtx) Result
 
-type RunState int
-
-type Result interface {
-	State() RunState
-	Err() error
-	Values() ResultValues
-	Wait()
-}
-
-type ResultValues map[string]interface{}
-
-type result struct {
-	state  RunState
-	values ResultValues
-	err    error
-	wait   func()
-}
-
-func NewResult(state RunState, values ResultValues, err error) *result {
-	return &result{state, values, err, nil}
-}
-
-func ResultSuccess() *result {
-	return NewResult(RunStateComplete, nil, nil)
-}
-
-func ResultError(err error) *result {
-	return NewResult(RunStateError, nil, err)
-}
-
-func ResultRunning(f func()) *result {
-	return &result{RunStateRunning, nil, nil, f}
-}
-
-func (r *result) State() RunState {
-	return r.state
-}
-
-func (r *result) Err() error {
-	return r.err
-}
-
-func (r *result) Values() ResultValues {
-	return r.values
-}
-
-func (r *result) Wait() {
-	if r.state == RunStateRunning && r.wait != nil {
-		r.wait()
-	}
-}
-
 type runner struct {
 	name     string
 	ctx      context.Context
@@ -92,8 +33,7 @@ type runner struct {
 	logger   logrus.FieldLogger
 	wg       sync.WaitGroup
 	children []*runner
-
-	vals ResultValues
+	vals     ResultValues
 }
 
 func NewRunner() *runner {
@@ -191,11 +131,15 @@ func (r *runner) runAll(c Component) error {
 	if err := r.buildAndRun(c); err != nil {
 		return err
 	}
-	for _, child := range c.Children() {
-		if err := r.Run(child); err != nil {
-			return err
+
+	if c, ok := c.(CompositeComponent); ok {
+		for _, child := range c.Children() {
+			if err := r.Run(child); err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 
