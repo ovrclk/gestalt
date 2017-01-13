@@ -1,10 +1,7 @@
 package test
 
 import (
-	"bufio"
-	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
@@ -13,6 +10,7 @@ import (
 )
 
 func TestBG(t *testing.T) {
+	//t.SkipNow()
 	gestalt.Run(
 		g.Suite("walker-dev").
 			Run(g.SH("cleanup", "echo", "cleaning")).
@@ -27,7 +25,7 @@ func TestParse(t *testing.T) {
 	gestalt.Run(
 		g.Suite("make-vars").
 			Run(g.SH("producer", "echo", "foo", "bar", "baz").
-				FN(produceFields)).
+				FN(g.P().Capture("a", "b", "c"))).
 			Run(g.FN("consumer", readFields(t))))
 }
 
@@ -35,7 +33,7 @@ func TestVars(t *testing.T) {
 
 	producer := g.
 		SH("producer", "echo", "foo", "bar", "baz").
-		FN(produceFields)
+		FN(g.P().Head().Capture("a", "b", "c"))
 
 	consumer := g.
 		FN("consumer", readFields(t))
@@ -44,7 +42,6 @@ func TestVars(t *testing.T) {
 		g.Suite("export-vars").
 			Run(producer).
 			Run(consumer))
-
 }
 
 func readFields(t *testing.T) func(gestalt.RunCtx) gestalt.Result {
@@ -69,28 +66,6 @@ func readFields(t *testing.T) func(gestalt.RunCtx) gestalt.Result {
 
 		return gestalt.ResultSuccess()
 	}
-}
-
-func produceFields(b *bufio.Reader, rctx gestalt.RunCtx) (gestalt.ResultValues, error) {
-	vals := make(gestalt.ResultValues)
-
-	line, _, err := b.ReadLine()
-
-	if err != nil {
-		return vals, err
-	}
-
-	fields := strings.Fields(string(line))
-
-	if len(fields) != 3 {
-		return vals, fmt.Errorf("invalid format")
-	}
-
-	vals["a"] = fields[0]
-	vals["b"] = fields[1]
-	vals["c"] = fields[2]
-
-	return vals, nil
 }
 
 func TestMain(m *testing.M) {
