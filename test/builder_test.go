@@ -10,7 +10,7 @@ import (
 )
 
 func TestBG(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	gestalt.Run(
 		g.Suite("walker-dev").
 			Run(g.SH("cleanup", "echo", "cleaning")).
@@ -22,6 +22,7 @@ func TestBG(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
+	t.SkipNow()
 	gestalt.Run(
 		g.Suite("make-vars").
 			Run(g.SH("producer", "echo", "foo", "bar", "baz").
@@ -30,7 +31,7 @@ func TestParse(t *testing.T) {
 }
 
 func TestVars(t *testing.T) {
-
+	t.SkipNow()
 	producer := g.
 		//SH("producer", "echo", "${foo}", "${bar}", "baz").
 		SH("producer", "echo", "foo", "bar", "baz").
@@ -49,6 +50,15 @@ func TestVars(t *testing.T) {
 		RequiresFor("producer")
 
 	gestalt.Run(suite)
+}
+
+func TestDump(t *testing.T) {
+	gestalt.Dump(g.
+		Suite("a").
+		Run(g.BG().Run(g.SH("b", "echo", "foo", "bar"))).
+		Run(g.SH("c", "echo", "hello")).
+		Run(g.Group("z").
+			Run(g.Retry(10).Run(g.SH("x", "echo", "sup")))))
 }
 
 func readFields(t *testing.T) func(gestalt.RunCtx) gestalt.Result {

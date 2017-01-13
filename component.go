@@ -9,8 +9,9 @@ import (
 type Component interface {
 	Name() string
 	IsTerminal() bool
+	IsPassThrough() bool
+
 	Build(BuildCtx) Runable
-	PassThrough() bool
 
 	Exports(...string) Component
 	Imports(...string) Component
@@ -21,6 +22,7 @@ type CompositeComponent interface {
 	Component
 	Children() []Component
 	Run(Component) CompositeComponent
+
 	ExportsFrom(...string) CompositeComponent
 	ImportsFor(...string) CompositeComponent
 	RequiresFor(...string) CompositeComponent
@@ -56,8 +58,8 @@ func (c *C) IsTerminal() bool {
 	return c.terminal
 }
 
-func (c *C) PassThrough() bool {
-	return c.name == ""
+func (c *C) IsPassThrough() bool {
+	return false
 }
 
 func (c *C) Exports(names ...string) Component {
@@ -111,6 +113,10 @@ func (c *CC) RequiresFor(names ...string) CompositeComponent {
 	return c
 }
 
+func (c *WC) IsPassThrough() bool {
+	return true
+}
+
 func (c *WC) Child() Component {
 	return c.child
 }
@@ -155,8 +161,8 @@ func NewGroup(name string) *CC {
 	}
 }
 
-func NewWrapComponent(fn func(WrapComponent, RunCtx) Result) *WC {
-	c := &WC{}
+func NewWrapComponent(name string, fn func(WrapComponent, RunCtx) Result) *WC {
+	c := &WC{C: C{name: name}}
 	c.build = func(bctx BuildCtx) Runable {
 		return func(rctx RunCtx) Result {
 			return fn(c, rctx)
@@ -167,6 +173,7 @@ func NewWrapComponent(fn func(WrapComponent, RunCtx) Result) *WC {
 
 func NewRetryComponent(tries int, delay time.Duration) *WC {
 	return NewWrapComponent(
+		"retry",
 		func(c WrapComponent, rctx RunCtx) Result {
 			for i := 0; i < tries; i++ {
 				if err := rctx.Run(c.Child()); err == nil {
@@ -179,7 +186,7 @@ func NewRetryComponent(tries int, delay time.Duration) *WC {
 }
 
 func NewBGComponent() *WC {
-	return NewWrapComponent(func(c WrapComponent, rctx RunCtx) Result {
+	return NewWrapComponent("background", func(c WrapComponent, rctx RunCtx) Result {
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
