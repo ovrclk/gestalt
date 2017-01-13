@@ -105,6 +105,12 @@ func NewComponent(name string, fn func(BuildCtx) Runable) Component {
 	return &component{name: name, build: fn}
 }
 
+func NewComponentR(name string, fn func(RunCtx) Result) Component {
+	return NewComponent(name, func(bctx BuildCtx) Runable {
+		return fn
+	})
+}
+
 func NewRetryComponent(tries int, delay time.Duration) WrapComponent {
 	return NewWrapComponent(
 		func(c WrapComponent, rctx RunCtx) Result {
