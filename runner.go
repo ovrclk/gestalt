@@ -66,8 +66,8 @@ func (r *runner) Values() ResultValues {
 func (r *runner) cloneFor(c Component) *runner {
 
 	name := r.name
-	if cname := c.Name(); cname != "" {
-		name = fmt.Sprintf("%v/%v", name, cname)
+	if !c.PassThrough() {
+		name = fmt.Sprintf("%v/%v", name, c.Name())
 	}
 
 	ctx, cancel := context.WithCancel(r.ctx)

@@ -16,6 +16,7 @@ type Component interface {
 	Name() string
 	IsTerminal() bool
 	Build(BuildCtx) Runable
+	PassThrough() bool
 }
 
 type CompositeComponent interface {
@@ -54,6 +55,10 @@ func (c *component) IsTerminal() bool {
 	return c.terminal
 }
 
+func (c *component) PassThrough() bool {
+	return c.name == ""
+}
+
 func (c *component) Build(bctx BuildCtx) Runable {
 	if c.build == nil {
 		return nil
@@ -79,6 +84,16 @@ func (c *wrapComponent) Run(child Component) Component {
 	return c
 }
 
+func NewComponent(name string, fn func(BuildCtx) Runable) Component {
+	return &component{name: name, build: fn}
+}
+
+func NewComponentR(name string, fn func(RunCtx) Result) Component {
+	return NewComponent(name, func(bctx BuildCtx) Runable {
+		return fn
+	})
+}
+
 func NewSuite(name string) CompositeComponent {
 	return &compositeComponent{
 		component: component{name: name, terminal: true},
@@ -99,16 +114,6 @@ func NewWrapComponent(fn func(WrapComponent, RunCtx) Result) WrapComponent {
 		}
 	}
 	return c
-}
-
-func NewComponent(name string, fn func(BuildCtx) Runable) Component {
-	return &component{name: name, build: fn}
-}
-
-func NewComponentR(name string, fn func(RunCtx) Result) Component {
-	return NewComponent(name, func(bctx BuildCtx) Runable {
-		return fn
-	})
 }
 
 func NewRetryComponent(tries int, delay time.Duration) WrapComponent {
