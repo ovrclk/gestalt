@@ -3,6 +3,8 @@ package gestalt
 import (
 	"fmt"
 	"time"
+
+	"github.com/ovrclk/gestalt/result"
 )
 
 type Component interface {
@@ -10,7 +12,7 @@ type Component interface {
 	IsTerminal() bool
 	IsPassThrough() bool
 
-	Eval(Evaluator) Result
+	Eval(Evaluator) result.Result
 }
 
 type CompositeComponent interface {
@@ -53,9 +55,9 @@ func (c *C) IsPassThrough() bool {
 	return false
 }
 
-func (c *C) Eval(e Evaluator) Result {
+func (c *C) Eval(e Evaluator) result.Result {
 	if c.build == nil {
-		return ResultSuccess()
+		return result.Complete()
 	}
 	return c.build(e.Builder())(e)
 }
@@ -80,19 +82,19 @@ func (c *WC) IsPassThrough() bool {
 	return true
 }
 
-func (c *CC) Eval(e Evaluator) Result {
-	results := make([]Result, 0)
-	var result Result
+func (c *CC) Eval(e Evaluator) result.Result {
+	results := make([]result.Result, 0)
+	var cur result.Result
 
 	for _, child := range c.Children() {
-		result = e.Evaluate(child)
-		results = append(results, result)
-		if result.State() == RunStateError {
+		cur = e.Evaluate(child)
+		results = append(results, cur)
+		if cur.State() == result.StateError {
 			break
 		}
 	}
 
-	if result.State() == RunStateError || c.terminal {
+	if cur.State() == result.StateError || c.terminal {
 		e.Stop()
 		for i, _ := range results {
 			results[i] = results[i].Wait()
@@ -102,34 +104,34 @@ func (c *CC) Eval(e Evaluator) Result {
 	errors := make([]error, 0)
 	running := false
 
-	for _, result := range results {
-		switch result.State() {
-		case RunStateError:
-			errors = append(errors, result.Err())
-		case RunStateRunning:
+	for _, cur := range results {
+		switch cur.State() {
+		case result.StateError:
+			errors = append(errors, cur.Err())
+		case result.StateRunning:
 			running = true
 		}
 	}
 
 	if len(errors) > 0 {
-		return ResultError(fmt.Errorf("error running %v children", len(errors)))
+		return result.Error(fmt.Errorf("error running %v children", len(errors)))
 	} else if running {
-		return ResultRunning(func() Result {
+		return result.Running(func() result.Result {
 			errors := make([]error, 0)
-			for _, result := range results {
-				final := result.Wait()
-				if final.State() == RunStateError {
+			for _, res := range results {
+				final := res.Wait()
+				if final.State() == result.StateError {
 					errors = append(errors, final.Err())
 				}
 			}
 			if len(errors) > 0 {
-				return ResultError(fmt.Errorf("error running %v children", len(errors)))
+				return result.Error(fmt.Errorf("error running %v children", len(errors)))
 			} else {
-				return ResultSuccess()
+				return result.Complete()
 			}
 		})
 	} else {
-		return ResultSuccess()
+		return result.Complete()
 	}
 }
 
@@ -164,10 +166,10 @@ func NewGroup(name string) *CC {
 	}
 }
 
-func NewWrapComponent(name string, fn func(WrapComponent, Evaluator) Result) *WC {
+func NewWrapComponent(name string, fn func(WrapComponent, Evaluator) result.Result) *WC {
 	c := &WC{C: C{name: name}}
 	c.build = func(bctx Builder) Runable {
-		return func(e Evaluator) Result {
+		return func(e Evaluator) result.Result {
 			return fn(c, e)
 		}
 	}
@@ -177,29 +179,29 @@ func NewWrapComponent(name string, fn func(WrapComponent, Evaluator) Result) *WC
 func NewRetryComponent(tries int, delay time.Duration) *WC {
 	return NewWrapComponent(
 		"retry",
-		func(c WrapComponent, e Evaluator) Result {
+		func(c WrapComponent, e Evaluator) result.Result {
 			for i := 0; i < tries; i++ {
 				if i > 0 {
 					time.Sleep(delay)
 				}
-				result := e.Evaluate(c.Child())
-				switch result.State() {
-				case RunStateComplete, RunStateRunning:
-					return result
+				res := e.Evaluate(c.Child())
+				switch res.State() {
+				case result.StateComplete, result.StateRunning:
+					return res
 				}
 			}
-			return ResultError(fmt.Errorf("too many retries"))
+			return result.Error(fmt.Errorf("too many retries"))
 		})
 }
 
 func NewBGComponent() *WC {
-	return NewWrapComponent("background", func(c WrapComponent, e Evaluator) Result {
-		ch := make(chan Result)
+	return NewWrapComponent("background", func(c WrapComponent, e Evaluator) result.Result {
+		ch := make(chan result.Result)
 		go func() {
 			defer close(ch)
 			ch <- e.Evaluate(c.Child()).Wait()
 		}()
-		return ResultRunning(func() Result {
+		return result.Running(func() result.Result {
 			return <-ch
 		})
 	})

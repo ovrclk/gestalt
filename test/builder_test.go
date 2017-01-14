@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt"
 	g "github.com/ovrclk/gestalt/builder"
+	"github.com/ovrclk/gestalt/result"
 )
 
 func TestBG(t *testing.T) {
@@ -63,8 +64,9 @@ func TestDump(t *testing.T) {
 }
 
 func readFields(t *testing.T) gestalt.Runable {
-	return func(e gestalt.Evaluator) gestalt.Result {
+	return func(e gestalt.Evaluator) result.Result {
 		t.SkipNow()
+
 		/*
 			values := rctx.Values()
 
@@ -85,7 +87,7 @@ func readFields(t *testing.T) gestalt.Runable {
 			}
 		*/
 
-		return gestalt.ResultSuccess()
+		return result.Complete()
 	}
 }
 

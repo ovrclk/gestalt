@@ -9,9 +9,10 @@ import (
 	"syscall"
 
 	"github.com/ovrclk/gestalt"
+	"github.com/ovrclk/gestalt/result"
 )
 
-type CmdFn func(*bufio.Reader, gestalt.Evaluator) (gestalt.ResultValues, error)
+type CmdFn func(*bufio.Reader, gestalt.Evaluator) error
 
 type Cmd struct {
 	gestalt.C
@@ -35,28 +36,28 @@ func (c *Cmd) FN(fn CmdFn) *Cmd {
 	return c
 }
 
-func (c *Cmd) Eval(e gestalt.Evaluator) gestalt.Result {
+func (c *Cmd) Eval(e gestalt.Evaluator) result.Result {
 	return c.Build(e.Builder())(e)
 }
 
 func (c *Cmd) Build(b gestalt.Builder) gestalt.Runable {
-	return func(e gestalt.Evaluator) gestalt.Result {
+	return func(e gestalt.Evaluator) result.Result {
 		cmd := exec.CommandContext(e.Context(), c.Path, c.Args...)
 
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
-			return gestalt.ResultError(err)
+			return result.Error(err)
 		}
 
 		stderr, err := cmd.StderrPipe()
 		if err != nil {
-			return gestalt.ResultError(err)
+			return result.Error(err)
 		}
 
 		e.Log().Debugf("running %v %v", cmd.Path, cmd.Args)
 		if err := cmd.Start(); err != nil {
 			e.Log().WithError(err).Errorf("error running %v", cmd.Path)
-			return gestalt.ResultError(err)
+			return result.Error(err)
 		}
 
 		var buf *bytes.Buffer
@@ -70,19 +71,18 @@ func (c *Cmd) Build(b gestalt.Builder) gestalt.Runable {
 		if err := cmd.Wait(); err != nil {
 			if !expectedExecError(err, e) {
 				e.Log().WithError(err).Error("command failed")
-				return gestalt.ResultError(err)
+				return result.Error(err)
 			}
 		}
 
 		if c.copyStdout() {
-			vals, err := c.fn(bufio.NewReader(buf), e)
+			err := c.fn(bufio.NewReader(buf), e)
 			if err != nil {
-				return gestalt.NewResult(gestalt.RunStateError, vals, err)
+				return result.Error(err)
 			}
-			return gestalt.NewResult(gestalt.RunStateComplete, vals, nil)
+			return result.Complete()
 		}
-
-		return gestalt.ResultSuccess()
+		return result.Complete()
 	}
 }
 

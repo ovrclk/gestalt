@@ -3,8 +3,6 @@ package exec
 import (
 	"bufio"
 	"bytes"
-	"io"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt"
@@ -28,28 +26,31 @@ func P() *textpipe {
 }
 
 func (f *textpipe) Capture(keys ...string) CmdFn {
-	return func(r *bufio.Reader, e gestalt.Evaluator) (gestalt.ResultValues, error) {
+	return func(r *bufio.Reader, e gestalt.Evaluator) error {
 
 		f.l = e.Log()
 
 		r, err := f.process(r)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		values := make(gestalt.ResultValues)
+		/*
+			values := make(gestalt.ResultValues)
 
-		line, err := r.ReadString('\n')
-		if err != nil && err != io.EOF {
-			return values, err
-		}
+			line, err := r.ReadString('\n')
+			if err != nil && err != io.EOF {
+				return values, err
+			}
 
-		fields := strings.Fields(line)
+			fields := strings.Fields(line)
 
-		for i := 0; i < len(keys) && i < len(fields); i++ {
-			values[keys[i]] = fields[i]
-		}
-		return values, nil
+			for i := 0; i < len(keys) && i < len(fields); i++ {
+				values[keys[i]] = fields[i]
+			}
+			return values, nil
+		*/
+		return nil
 	}
 }
 

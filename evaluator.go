@@ -5,11 +5,12 @@ import (
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/ovrclk/gestalt/result"
 )
 
 type Builder interface {
 }
-type Runable func(Evaluator) Result
+type Runable func(Evaluator) result.Result
 
 func Run(node Component) error {
 	return NewEvaluator().Evaluate(node).Wait().Err()
@@ -17,7 +18,7 @@ func Run(node Component) error {
 
 type Evaluator interface {
 	Log() logrus.FieldLogger
-	Evaluate(Component) Result
+	Evaluate(Component) result.Result
 	Context() context.Context
 	Builder() Builder
 	Stop()
@@ -56,7 +57,7 @@ func (e *evaluator) Stop() {
 	e.cancel()
 }
 
-func (e *evaluator) Evaluate(node Component) Result {
+func (e *evaluator) Evaluate(node Component) result.Result {
 	child := e.cloneFor(node)
 
 	child.Log().Debug("start")
