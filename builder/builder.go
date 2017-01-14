@@ -4,24 +4,25 @@ import (
 	"time"
 
 	"github.com/ovrclk/gestalt"
+	"github.com/ovrclk/gestalt/component"
 	"github.com/ovrclk/gestalt/exec"
 	"github.com/ovrclk/gestalt/vars"
 )
 
-func Group(name string) gestalt.CompositeComponent {
-	return gestalt.NewGroup(name)
+func Group(name string) component.CompositeComponent {
+	return component.NewGroup(name)
 }
 
-func Suite(name string) gestalt.CompositeComponent {
-	return gestalt.NewSuite(name)
+func Suite(name string) component.CompositeComponent {
+	return component.NewSuite(name)
 }
 
-func BG() gestalt.WrapComponent {
-	return gestalt.NewBGComponent()
+func BG() component.WrapComponent {
+	return component.NewBGComponent()
 }
 
-func Retry(tries int) gestalt.WrapComponent {
-	return gestalt.NewRetryComponent(tries, time.Second)
+func Retry(tries int) component.WrapComponent {
+	return component.NewRetryComponent(tries, time.Second)
 }
 
 func FN(name string, fn gestalt.Runable) gestalt.Component {

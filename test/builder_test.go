@@ -56,6 +56,7 @@ func TestVars(t *testing.T) {
 }
 
 func TestDump(t *testing.T) {
+	//t.SkipNow()
 	gestalt.Dump(g.
 		Suite("a").
 		Run(g.BG().Run(g.SH("b", "echo", "foo", "bar"))).
