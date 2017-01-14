@@ -9,9 +9,7 @@ import (
 
 type Component interface {
 	Name() string
-	IsTerminal() bool
 	IsPassThrough() bool
-
 	Eval(Evaluator) result.Result
 }
 
@@ -45,10 +43,6 @@ type WC struct {
 
 func (c *C) Name() string {
 	return c.name
-}
-
-func (c *C) IsTerminal() bool {
-	return c.terminal
 }
 
 func (c *C) IsPassThrough() bool {
