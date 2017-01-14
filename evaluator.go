@@ -19,6 +19,10 @@ func Run(node Component) error {
 type Evaluator interface {
 	Log() logrus.FieldLogger
 	Evaluate(Component) result.Result
+
+	Emit(string, string)
+	Vars() Vars
+
 	Context() context.Context
 	Builder() Builder
 	Stop()
@@ -29,6 +33,8 @@ type evaluator struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	log    logrus.FieldLogger
+
+	vars Vars
 }
 
 func NewEvaluator() *evaluator {
@@ -38,6 +44,7 @@ func NewEvaluator() *evaluator {
 		ctx:    ctx,
 		cancel: cancel,
 		log:    logrus.StandardLogger(),
+		vars:   NewVars(),
 	}
 }
 
@@ -51,6 +58,14 @@ func (e *evaluator) Log() logrus.FieldLogger {
 
 func (e *evaluator) Context() context.Context {
 	return e.ctx
+}
+
+func (e *evaluator) Emit(key string, value string) {
+	e.vars.Put(key, value)
+}
+
+func (e *evaluator) Vars() Vars {
+	return e.vars
 }
 
 func (e *evaluator) Stop() {
@@ -81,5 +96,6 @@ func (e *evaluator) cloneFor(node Component) *evaluator {
 		ctx:    ctx,
 		cancel: cancel,
 		log:    e.log.WithField("path", path),
+		vars:   e.vars,
 	}
 }

@@ -40,7 +40,7 @@ func (c *Cmd) Eval(e gestalt.Evaluator) result.Result {
 	return c.Build(e.Builder())(e)
 }
 
-func (c *Cmd) Build(b gestalt.Builder) gestalt.Runable {
+func (c *Cmd) Build(_ gestalt.Builder) gestalt.Runable {
 	return func(e gestalt.Evaluator) result.Result {
 		cmd := exec.CommandContext(e.Context(), c.Path, c.Args...)
 

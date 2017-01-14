@@ -1,11 +1,20 @@
 package result
 
+import "fmt"
+
 const (
 	StateInvalid State = iota
 	StateRunning
 	StateComplete
 	StateError
 )
+
+var stateString = []string{
+	"invalid",
+	"running",
+	"complete",
+	"error",
+}
 
 type State int
 
@@ -46,4 +55,11 @@ func (r *result) Wait() Result {
 
 func (r *result) Err() error {
 	return r.err
+}
+
+func (r *result) String() string {
+	if r.state == StateError {
+		return fmt.Sprintf("[%v: %v]", stateString[r.state], r.err)
+	}
+	return fmt.Sprintf("[%v]", stateString[r.state])
 }

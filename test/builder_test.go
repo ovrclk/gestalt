@@ -19,11 +19,10 @@ func TestBG(t *testing.T) {
 				g.Group("server").
 					Run(g.BG().Run(g.SH("start", "while true; do echo .; sleep 1; done"))).
 					Run(g.SH("ping", "sleep", "1"))).
-			Run(g.SH("okay", "sleep 5")))
+			Run(g.SH("okay", "sleep 1")))
 }
 
 func TestParse(t *testing.T) {
-	t.SkipNow()
 	gestalt.Run(
 		g.Suite("make-vars").
 			Run(g.SH("producer", "echo", "foo", "bar", "baz").
@@ -32,7 +31,6 @@ func TestParse(t *testing.T) {
 }
 
 func TestVars(t *testing.T) {
-	t.SkipNow()
 	producer := g.
 		//SH("producer", "echo", "${foo}", "${bar}", "baz").
 		SH("producer", "echo", "foo", "bar", "baz").
@@ -65,27 +63,24 @@ func TestDump(t *testing.T) {
 
 func readFields(t *testing.T) gestalt.Runable {
 	return func(e gestalt.Evaluator) result.Result {
-		t.SkipNow()
 
-		/*
-			values := rctx.Values()
+		vars := e.Vars()
 
-			if len := len(rctx.Values()); len != 3 {
-				t.Fatalf("incorrect values size (%v != %v)", len, 3)
-			}
+		if count := vars.Count(); count != 3 {
+			t.Fatalf("incorrect values size (%v != %v)", count, 3)
+		}
 
-			if x := values["a"]; x != "foo" {
-				t.Fatalf("incorrect values size (%v != %v)", x, "foo")
-			}
+		if x := vars.Get("a"); x != "foo" {
+			t.Fatalf("incorrect values size (%v != %v)", x, "foo")
+		}
 
-			if x := values["b"]; x != "bar" {
-				t.Fatalf("incorrect values size (%v != %v)", x, "bar")
-			}
+		if x := vars.Get("b"); x != "bar" {
+			t.Fatalf("incorrect values size (%v != %v)", x, "bar")
+		}
 
-			if x := values["c"]; x != "baz" {
-				t.Fatalf("incorrect values size (%v != %v)", x, "baz")
-			}
-		*/
+		if x := vars.Get("c"); x != "baz" {
+			t.Fatalf("incorrect values size (%v != %v)", x, "baz")
+		}
 
 		return result.Complete()
 	}
