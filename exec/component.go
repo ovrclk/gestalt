@@ -10,6 +10,7 @@ import (
 
 	"github.com/ovrclk/gestalt"
 	"github.com/ovrclk/gestalt/result"
+	"github.com/ovrclk/gestalt/vars"
 )
 
 type CmdFn func(*bufio.Reader, gestalt.Evaluator) error
@@ -33,6 +34,11 @@ func NewCmd(name string, path string, args []string) *Cmd {
 
 func (c *Cmd) FN(fn CmdFn) *Cmd {
 	c.fn = fn
+	return c
+}
+
+func (c *Cmd) WithMeta(m vars.Meta) gestalt.Component {
+	c.C.WithMeta(m)
 	return c
 }
 

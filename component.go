@@ -28,14 +28,14 @@ type WrapComponent interface {
 }
 
 type C struct {
-	name     string
-	terminal bool
-	build    func(Builder) Runable
-	meta     vars.Meta
+	name  string
+	build func(Builder) Runable
+	meta  vars.Meta
 }
 
 type CC struct {
 	C
+	terminal bool
 	children []Component
 }
 
@@ -53,6 +53,7 @@ func (c *C) IsPassThrough() bool {
 }
 
 func (c *C) WithMeta(m vars.Meta) Component {
+	c.meta = c.meta.Merge(m)
 	return c
 }
 
@@ -123,7 +124,7 @@ func (c *WC) Run(child Component) Component {
 }
 
 func NewComponent(name string, fn func(Builder) Runable) *C {
-	return &C{name: name, build: fn}
+	return &C{name: name, build: fn, meta: vars.NewMeta()}
 }
 
 func NewComponentR(name string, fn Runable) *C {
@@ -134,18 +135,19 @@ func NewComponentR(name string, fn Runable) *C {
 
 func NewSuite(name string) *CC {
 	return &CC{
-		C: C{name: name, terminal: true},
+		C:        *NewComponent(name, nil),
+		terminal: true,
 	}
 }
 
 func NewGroup(name string) *CC {
 	return &CC{
-		C: C{name: name, terminal: false},
+		C: *NewComponent(name, nil),
 	}
 }
 
 func NewWrapComponent(name string, fn func(WrapComponent, Evaluator) result.Result) *WC {
-	c := &WC{C: C{name: name}}
+	c := &WC{C: *NewComponent(name, nil)}
 	c.build = func(bctx Builder) Runable {
 		return func(e Evaluator) result.Result {
 			return fn(c, e)
