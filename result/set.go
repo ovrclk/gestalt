@@ -18,27 +18,27 @@ func NewSet() *set {
 
 type set struct {
 	children []Result
-	errc     []Result
-	runc     []Result
+	errors   []Result
+	running  []Result
 }
 
 func (s *set) Add(child Result) Set {
 	switch child.State() {
 	case StateError:
-		s.errc = append(s.errc, child)
+		s.errors = append(s.errors, child)
 	case StateRunning:
-		s.runc = append(s.runc, child)
+		s.running = append(s.running, child)
 	}
 	s.children = append(s.children, child)
 	return s
 }
 
 func (s *set) IsError() bool {
-	return len(s.errc) > 0
+	return len(s.errors) > 0
 }
 
 func (s *set) IsRunning() bool {
-	return len(s.runc) > 0
+	return len(s.running) > 0
 }
 
 func (s *set) IsComplete() bool {
@@ -54,7 +54,7 @@ func (s *set) Wait() Result {
 }
 
 func (s *set) combine() Result {
-	if len(s.runc) > 0 {
+	if len(s.running) > 0 {
 		return Running(func() Result {
 			sfinal := NewSet()
 			for _, child := range s.children {
@@ -63,8 +63,8 @@ func (s *set) combine() Result {
 			return sfinal.Result()
 		})
 	}
-	if len(s.errc) > 0 {
-		return Error(fmt.Errorf("%v", s.errc))
+	if len(s.errors) > 0 {
+		return Error(fmt.Errorf("%v", s.errors))
 	}
 	return Complete()
 }

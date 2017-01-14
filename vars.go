@@ -7,22 +7,22 @@ type Vars interface {
 	Count() int
 }
 
-type vars struct {
+type varmap struct {
 	values map[string]string
 }
 
 func NewVars() Vars {
-	return &vars{make(map[string]string)}
+	return &varmap{make(map[string]string)}
 }
 
-func (v *vars) Put(key, val string) {
+func (v *varmap) Put(key, val string) {
 	v.values[key] = val
 }
 
-func (v *vars) Get(key string) string {
+func (v *varmap) Get(key string) string {
 	return v.values[key]
 }
 
-func (v *vars) Count() int {
+func (v *varmap) Count() int {
 	return len(v.values)
 }

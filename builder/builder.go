@@ -5,6 +5,7 @@ import (
 
 	"github.com/ovrclk/gestalt"
 	"github.com/ovrclk/gestalt/exec"
+	"github.com/ovrclk/gestalt/vars"
 )
 
 func Group(name string) gestalt.CompositeComponent {
@@ -37,4 +38,8 @@ func EXEC(name, cmd string, args ...string) *exec.Cmd {
 
 func P() exec.TextPipe {
 	return exec.P()
+}
+
+func M() vars.Meta {
+	return vars.NewMeta()
 }

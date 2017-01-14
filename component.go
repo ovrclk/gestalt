@@ -5,12 +5,14 @@ import (
 	"time"
 
 	"github.com/ovrclk/gestalt/result"
+	"github.com/ovrclk/gestalt/vars"
 )
 
 type Component interface {
 	Name() string
 	IsPassThrough() bool
 	Eval(Evaluator) result.Result
+	WithMeta(vars.Meta) Component
 }
 
 type CompositeComponent interface {
@@ -29,6 +31,7 @@ type C struct {
 	name     string
 	terminal bool
 	build    func(Builder) Runable
+	meta     vars.Meta
 }
 
 type CC struct {
@@ -49,6 +52,10 @@ func (c *C) IsPassThrough() bool {
 	return false
 }
 
+func (c *C) WithMeta(m vars.Meta) Component {
+	return c
+}
+
 func (c *C) Eval(e Evaluator) result.Result {
 	if c.build == nil {
 		return result.Complete()
@@ -67,13 +74,14 @@ func (c *CC) Children() []Component {
 	return c.children
 }
 
-func (c *CC) Run(child Component) CompositeComponent {
-	c.children = append(c.children, child)
+func (c *CC) WithMeta(m vars.Meta) Component {
+	c.C.WithMeta(m)
 	return c
 }
 
-func (c *WC) IsPassThrough() bool {
-	return true
+func (c *CC) Run(child Component) CompositeComponent {
+	c.children = append(c.children, child)
+	return c
 }
 
 func (c *CC) Eval(e Evaluator) result.Result {
@@ -94,6 +102,15 @@ func (c *CC) Eval(e Evaluator) result.Result {
 	}
 
 	return rset.Result()
+}
+
+func (c *WC) IsPassThrough() bool {
+	return true
+}
+
+func (c *WC) WithMeta(m vars.Meta) Component {
+	c.C.WithMeta(m)
+	return c
 }
 
 func (c *WC) Child() Component {

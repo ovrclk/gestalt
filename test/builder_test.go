@@ -31,17 +31,20 @@ func TestParse(t *testing.T) {
 }
 
 func TestVars(t *testing.T) {
+
 	producer := g.
-		//SH("producer", "echo", "${foo}", "${bar}", "baz").
 		SH("producer", "echo", "foo", "bar", "baz").
-		FN(g.P().Head().Capture("a", "b", "c"))
+		FN(g.P().Head().Capture("a", "b", "c")).
+		WithMeta(g.M().
+			Export("a", "b", "c"))
 
 		//Requires("foo", "bar")
 		//Exports("a", "b", "c")
 
 	consumer := g.
-		FN("consumer", readFields(t))
-		//Requires("a", "b", "c")
+		FN("consumer", readFields(t)).
+		WithMeta(g.M().
+			Require("a", "b", "c"))
 
 	suite := g.Suite("export-vars").
 		Run(producer).
