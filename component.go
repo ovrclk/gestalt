@@ -2,7 +2,6 @@ package gestalt
 
 import (
 	"fmt"
-	"sync"
 	"time"
 )
 
@@ -195,16 +194,13 @@ func NewRetryComponent(tries int, delay time.Duration) *WC {
 
 func NewBGComponent() *WC {
 	return NewWrapComponent("background", func(c WrapComponent, e Evaluator) Result {
-		var wg sync.WaitGroup
-		var result Result
-		wg.Add(1)
+		ch := make(chan Result)
 		go func() {
-			defer wg.Done()
-			result = e.Evaluate(c.Child()).Wait()
+			defer close(ch)
+			ch <- e.Evaluate(c.Child()).Wait()
 		}()
 		return ResultRunning(func() Result {
-			wg.Wait()
-			return result
+			return <-ch
 		})
 	})
 }
