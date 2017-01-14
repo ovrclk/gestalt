@@ -83,56 +83,23 @@ func (c *WC) IsPassThrough() bool {
 }
 
 func (c *CC) Eval(e Evaluator) result.Result {
-	results := make([]result.Result, 0)
-	var cur result.Result
 
+	rset := result.NewSet()
+
+	// evaluate children up to an error
 	for _, child := range c.Children() {
-		cur = e.Evaluate(child)
-		results = append(results, cur)
-		if cur.State() == result.StateError {
+		rset.Add(e.Evaluate(child))
+		if rset.IsError() {
 			break
 		}
 	}
 
-	if cur.State() == result.StateError || c.terminal {
+	if rset.IsError() || c.terminal {
 		e.Stop()
-		for i, _ := range results {
-			results[i] = results[i].Wait()
-		}
+		return rset.Wait()
 	}
 
-	errors := make([]error, 0)
-	running := false
-
-	for _, cur := range results {
-		switch cur.State() {
-		case result.StateError:
-			errors = append(errors, cur.Err())
-		case result.StateRunning:
-			running = true
-		}
-	}
-
-	if len(errors) > 0 {
-		return result.Error(fmt.Errorf("error running %v children", len(errors)))
-	} else if running {
-		return result.Running(func() result.Result {
-			errors := make([]error, 0)
-			for _, res := range results {
-				final := res.Wait()
-				if final.State() == result.StateError {
-					errors = append(errors, final.Err())
-				}
-			}
-			if len(errors) > 0 {
-				return result.Error(fmt.Errorf("error running %v children", len(errors)))
-			} else {
-				return result.Complete()
-			}
-		})
-	} else {
-		return result.Complete()
-	}
+	return rset.Result()
 }
 
 func (c *WC) Child() Component {

@@ -20,6 +20,9 @@ type State int
 
 type Result interface {
 	State() State
+	IsRunning() bool
+	IsComplete() bool
+	IsError() bool
 	Err() error
 	Wait() Result
 }
@@ -44,6 +47,15 @@ func Running(fn func() Result) Result {
 
 func (r *result) State() State {
 	return r.state
+}
+func (r *result) IsRunning() bool {
+	return r.state == StateRunning
+}
+func (r *result) IsComplete() bool {
+	return r.state == StateComplete
+}
+func (r *result) IsError() bool {
+	return r.state == StateError
 }
 
 func (r *result) Wait() Result {
