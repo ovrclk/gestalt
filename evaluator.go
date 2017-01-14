@@ -6,6 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt/result"
+	"github.com/ovrclk/gestalt/vars"
 )
 
 type Builder interface {
@@ -21,7 +22,7 @@ type Evaluator interface {
 	Evaluate(Component) result.Result
 
 	Emit(string, string)
-	Vars() Vars
+	Vars() vars.Vars
 
 	Context() context.Context
 	Builder() Builder
@@ -34,7 +35,7 @@ type evaluator struct {
 	cancel context.CancelFunc
 	log    logrus.FieldLogger
 
-	vars Vars
+	vars vars.Vars
 }
 
 func NewEvaluator() *evaluator {
@@ -44,7 +45,7 @@ func NewEvaluator() *evaluator {
 		ctx:    ctx,
 		cancel: cancel,
 		log:    logrus.StandardLogger(),
-		vars:   NewVars(),
+		vars:   vars.NewVars(),
 	}
 }
 
@@ -64,7 +65,7 @@ func (e *evaluator) Emit(key string, value string) {
 	e.vars.Put(key, value)
 }
 
-func (e *evaluator) Vars() Vars {
+func (e *evaluator) Vars() vars.Vars {
 	return e.vars
 }
 

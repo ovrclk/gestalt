@@ -1,4 +1,4 @@
-package gestalt
+package vars
 
 type Vars interface {
 	Put(string, string)
