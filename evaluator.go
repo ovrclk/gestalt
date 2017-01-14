@@ -76,7 +76,13 @@ func (e *evaluator) Evaluate(node Component) result.Result {
 	child := e.cloneFor(node)
 
 	child.Log().Debug("start")
+
 	result := node.Eval(child)
+
+	if result.IsError() {
+		child.Log().WithError(result.Err()).Error("eval failed")
+	}
+
 	child.Log().Debugf("end -> %v", result)
 
 	return result

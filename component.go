@@ -66,7 +66,9 @@ func (c *C) Eval(e Evaluator) result.Result {
 
 func (c *C) Build(b Builder) Runable {
 	if c.build == nil {
-		return nil
+		return func(e Evaluator) result.Result {
+			return result.Error(fmt.Errorf("empty node"))
+		}
 	}
 	return c.build(b)
 }
