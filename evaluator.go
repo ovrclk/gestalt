@@ -9,6 +9,11 @@ import (
 
 type Builder interface {
 }
+type Runable func(Evaluator) Result
+
+func Run(node Component) error {
+	return NewEvaluator().Evaluate(node).Wait().Err()
+}
 
 type Evaluator interface {
 	Log() logrus.FieldLogger
@@ -52,8 +57,13 @@ func (e *evaluator) Stop() {
 }
 
 func (e *evaluator) Evaluate(node Component) Result {
-	e.Log().Debugf("starting %v", node.Name())
-	return node.Eval(e.cloneFor(node))
+	child := e.cloneFor(node)
+
+	child.Log().Debug("start")
+	result := node.Eval(child)
+	child.Log().Debugf("end -> %v", result)
+
+	return result
 }
 
 func (e *evaluator) cloneFor(node Component) *evaluator {

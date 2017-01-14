@@ -1,7 +1,5 @@
 package gestalt
 
-import "fmt"
-
 const (
 	RunStateStopped RunState = iota
 	RunStateRunning
@@ -57,7 +55,6 @@ func (r *result) Values() ResultValues {
 
 func (r *result) Wait() Result {
 	if r.state == RunStateRunning && r.wait != nil {
-		fmt.Printf("running %v\n", r.wait)
 		return r.wait()
 	}
 	return r
