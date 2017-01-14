@@ -11,7 +11,7 @@ import (
 	"github.com/ovrclk/gestalt"
 )
 
-type CmdFn func(*bufio.Reader, gestalt.RunCtx) (gestalt.ResultValues, error)
+type CmdFn func(*bufio.Reader, gestalt.Evaluator) (gestalt.ResultValues, error)
 
 type Cmd struct {
 	gestalt.C
@@ -35,22 +35,13 @@ func (c *Cmd) FN(fn CmdFn) *Cmd {
 	return c
 }
 
-func (c *Cmd) Exports(names ...string) gestalt.Component {
-	c.C.Exports(names...)
-	return c
-}
-func (c *Cmd) Imports(names ...string) gestalt.Component {
-	c.C.Imports(names...)
-	return c
-}
-func (c *Cmd) Requires(names ...string) gestalt.Component {
-	c.C.Requires(names...)
-	return c
+func (c *Cmd) Eval(e gestalt.Evaluator) gestalt.Result {
+	return c.Build(e.Builder())(e)
 }
 
-func (c *Cmd) Build(bctx gestalt.BuildCtx) gestalt.Runable {
-	return func(rctx gestalt.RunCtx) gestalt.Result {
-		cmd := exec.CommandContext(rctx.Context(), c.Path, c.Args...)
+func (c *Cmd) Build(b gestalt.Builder) gestalt.Runable {
+	return func(e gestalt.Evaluator) gestalt.Result {
+		cmd := exec.CommandContext(e.Context(), c.Path, c.Args...)
 
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
@@ -62,9 +53,9 @@ func (c *Cmd) Build(bctx gestalt.BuildCtx) gestalt.Runable {
 			return gestalt.ResultError(err)
 		}
 
-		rctx.Logger().Debugf("running %v %v", cmd.Path, cmd.Args)
+		e.Log().Debugf("running %v %v", cmd.Path, cmd.Args)
 		if err := cmd.Start(); err != nil {
-			rctx.Logger().WithError(err).Errorf("error running %v", cmd.Path)
+			e.Log().WithError(err).Errorf("error running %v", cmd.Path)
 			return gestalt.ResultError(err)
 		}
 
@@ -73,18 +64,18 @@ func (c *Cmd) Build(bctx gestalt.BuildCtx) gestalt.Runable {
 			buf = new(bytes.Buffer)
 		}
 
-		go logStream(stdout, rctx.Logger().Debug, buf)
-		go logStream(stderr, rctx.Logger().Error, nil)
+		go logStream(stdout, e.Log().Debug, buf)
+		go logStream(stderr, e.Log().Error, nil)
 
 		if err := cmd.Wait(); err != nil {
-			if !expectedExecError(err, rctx) {
-				rctx.Logger().WithError(err).Error("command failed")
+			if !expectedExecError(err, e) {
+				e.Log().WithError(err).Error("command failed")
 				return gestalt.ResultError(err)
 			}
 		}
 
 		if c.copyStdout() {
-			vals, err := c.fn(bufio.NewReader(buf), rctx)
+			vals, err := c.fn(bufio.NewReader(buf), e)
 			if err != nil {
 				return gestalt.NewResult(gestalt.RunStateError, vals, err)
 			}
@@ -117,8 +108,8 @@ func logStream(reader io.ReadCloser, log func(fmt ...interface{}), b *bytes.Buff
 }
 
 // Fail silently if killed due to context being cancelled.
-func expectedExecError(err error, rctx gestalt.RunCtx) bool {
-	if exiterr, ok := err.(*exec.ExitError); ok && rctx.Context().Err() != nil {
+func expectedExecError(err error, e gestalt.Evaluator) bool {
+	if exiterr, ok := err.(*exec.ExitError); ok && e.Context().Err() != nil {
 		if wstatus, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 			if wstatus.Signal() == syscall.SIGKILL {
 				return true

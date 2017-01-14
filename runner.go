@@ -8,23 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-type BuildCtx interface {
-	Logger() logrus.FieldLogger
-	Values() ResultValues
-}
-
-type RunCtx interface {
-	Context() context.Context
-	Logger() logrus.FieldLogger
-	Values() ResultValues
-	Run(c Component) error
-}
-
-type Runner interface {
-	RunCtx
-}
-
-type Runable func(RunCtx) Result
+type Runable func(Evaluator) Result
 
 type runner struct {
 	name     string
@@ -48,7 +32,8 @@ func NewRunner() *runner {
 }
 
 func Run(c Component) error {
-	return NewRunner().Run(c)
+	return NewEvaluator().Evaluate(c).Err()
+	//return NewRunner().Run(c)
 }
 
 func (r *runner) Context() context.Context {
@@ -144,35 +129,37 @@ func (r *runner) runAll(c Component) error {
 }
 
 func (r *runner) buildAndRun(c Component) error {
-	fn := c.Build(r)
+	/*
+		fn := c.Build(r)
 
-	if fn == nil {
-		return nil
-	}
+		if fn == nil {
+			return nil
+		}
 
-	r.Logger().Infof("start")
+		r.Logger().Infof("start")
 
-	result := fn(r)
-	switch result.State() {
-	case RunStateComplete:
-		r.Logger().Infof("complete")
-		r.addVars(result.Values())
-	case RunStateError:
-		r.Logger().WithError(result.Err()).Errorf("error")
-		return result.Err()
-	case RunStateRunning:
-		r.wg.Add(1)
-		r.Logger().Infof("background")
-		go func() {
-			defer r.wg.Done()
-			result.Wait()
+		result := fn(r)
+		switch result.State() {
+		case RunStateComplete:
 			r.Logger().Infof("complete")
-		}()
-	default:
-		err := fmt.Errorf("Unknown state: %v", result.State())
-		r.Logger().WithError(err).Errorf("error")
-		return err
-	}
+			r.addVars(result.Values())
+		case RunStateError:
+			r.Logger().WithError(result.Err()).Errorf("error")
+			return result.Err()
+		case RunStateRunning:
+			r.wg.Add(1)
+			r.Logger().Infof("background")
+			go func() {
+				defer r.wg.Done()
+				result.Wait()
+				r.Logger().Infof("complete")
+			}()
+		default:
+			err := fmt.Errorf("Unknown state: %v", result.State())
+			r.Logger().WithError(err).Errorf("error")
+			return err
+		}
+	*/
 	return nil
 }
 

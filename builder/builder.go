@@ -23,7 +23,7 @@ func Retry(tries int) gestalt.WrapComponent {
 	return gestalt.NewRetryComponent(tries, time.Second)
 }
 
-func FN(name string, fn func(rctx gestalt.RunCtx) gestalt.Result) gestalt.Component {
+func FN(name string, fn gestalt.Runable) gestalt.Component {
 	return gestalt.NewComponentR(name, fn)
 }
 

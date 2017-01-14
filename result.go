@@ -1,5 +1,7 @@
 package gestalt
 
+import "fmt"
+
 const (
 	RunStateStopped RunState = iota
 	RunStateRunning
@@ -13,7 +15,7 @@ type Result interface {
 	State() RunState
 	Err() error
 	Values() ResultValues
-	Wait()
+	Wait() Result
 }
 
 type ResultValues map[string]interface{}
@@ -22,7 +24,7 @@ type result struct {
 	state  RunState
 	values ResultValues
 	err    error
-	wait   func()
+	wait   func() Result
 }
 
 func NewResult(state RunState, values ResultValues, err error) *result {
@@ -37,7 +39,7 @@ func ResultError(err error) *result {
 	return NewResult(RunStateError, nil, err)
 }
 
-func ResultRunning(f func()) *result {
+func ResultRunning(f func() Result) *result {
 	return &result{RunStateRunning, nil, nil, f}
 }
 
@@ -53,8 +55,10 @@ func (r *result) Values() ResultValues {
 	return r.values
 }
 
-func (r *result) Wait() {
+func (r *result) Wait() Result {
 	if r.state == RunStateRunning && r.wait != nil {
-		r.wait()
+		fmt.Printf("running %v\n", r.wait)
+		return r.wait()
 	}
+	return r
 }

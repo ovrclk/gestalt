@@ -28,9 +28,9 @@ func P() *textpipe {
 }
 
 func (f *textpipe) Capture(keys ...string) CmdFn {
-	return func(r *bufio.Reader, rctx gestalt.RunCtx) (gestalt.ResultValues, error) {
+	return func(r *bufio.Reader, e gestalt.Evaluator) (gestalt.ResultValues, error) {
 
-		f.l = rctx.Logger()
+		f.l = e.Log()
 
 		r, err := f.process(r)
 		if err != nil {

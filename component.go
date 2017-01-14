@@ -11,21 +11,13 @@ type Component interface {
 	IsTerminal() bool
 	IsPassThrough() bool
 
-	Build(BuildCtx) Runable
-
-	Exports(...string) Component
-	Imports(...string) Component
-	Requires(...string) Component
+	Eval(Evaluator) Result
 }
 
 type CompositeComponent interface {
 	Component
 	Children() []Component
 	Run(Component) CompositeComponent
-
-	ExportsFrom(...string) CompositeComponent
-	ImportsFor(...string) CompositeComponent
-	RequiresFor(...string) CompositeComponent
 }
 
 type WrapComponent interface {
@@ -37,7 +29,7 @@ type WrapComponent interface {
 type C struct {
 	name     string
 	terminal bool
-	build    func(BuildCtx) Runable
+	build    func(Builder) Runable
 }
 
 type CC struct {
@@ -62,21 +54,18 @@ func (c *C) IsPassThrough() bool {
 	return false
 }
 
-func (c *C) Exports(names ...string) Component {
-	return c
-}
-func (c *C) Imports(names ...string) Component {
-	return c
-}
-func (c *C) Requires(names ...string) Component {
-	return c
+func (c *C) Eval(e Evaluator) Result {
+	if c.build == nil {
+		return ResultSuccess()
+	}
+	return c.build(e.Builder())(e)
 }
 
-func (c *C) Build(bctx BuildCtx) Runable {
+func (c *C) Build(b Builder) Runable {
 	if c.build == nil {
 		return nil
 	}
-	return c.build(bctx)
+	return c.build(b)
 }
 
 func (c *CC) Children() []Component {
@@ -88,50 +77,65 @@ func (c *CC) Run(child Component) CompositeComponent {
 	return c
 }
 
-func (c *CC) Exports(names ...string) Component {
-	c.C.Exports(names...)
-	return c
-}
-func (c *CC) Imports(names ...string) Component {
-	c.C.Imports(names...)
-	return c
-}
-func (c *CC) Requires(names ...string) Component {
-	c.C.Requires(names...)
-	return c
-}
-
-func (c *CC) ExportsFrom(names ...string) CompositeComponent {
-	return c
-}
-
-func (c *CC) ImportsFor(names ...string) CompositeComponent {
-	return c
-}
-
-func (c *CC) RequiresFor(names ...string) CompositeComponent {
-	return c
-}
-
 func (c *WC) IsPassThrough() bool {
 	return true
 }
 
-func (c *WC) Child() Component {
-	return c.child
+func (c *CC) Eval(e Evaluator) Result {
+	results := make([]Result, 0)
+	var result Result
+
+	for _, child := range c.Children() {
+		result = e.Evaluate(child)
+		results = append(results, result)
+		if result.State() == RunStateError {
+			break
+		}
+	}
+
+	if result.State() == RunStateError || c.terminal {
+		e.Stop()
+		for i, _ := range results {
+			results[i] = results[i].Wait()
+		}
+	}
+
+	errors := make([]error, 0)
+	running := false
+
+	for _, result := range results {
+		switch result.State() {
+		case RunStateError:
+			errors = append(errors, result.Err())
+		case RunStateRunning:
+			running = true
+		}
+	}
+
+	if len(errors) > 0 {
+		return ResultError(fmt.Errorf("error running %v children", len(errors)))
+	} else if running {
+		return ResultRunning(func() Result {
+			errors := make([]error, 0)
+			for _, result := range results {
+				final := result.Wait()
+				if final.State() == RunStateError {
+					errors = append(errors, final.Err())
+				}
+			}
+			if len(errors) > 0 {
+				return ResultError(fmt.Errorf("error running %v children", len(errors)))
+			} else {
+				return ResultSuccess()
+			}
+		})
+	} else {
+		return ResultSuccess()
+	}
 }
 
-func (c *WC) Exports(names ...string) Component {
-	c.C.Exports(names...)
-	return c
-}
-func (c *WC) Imports(names ...string) Component {
-	c.C.Imports(names...)
-	return c
-}
-func (c *WC) Requires(names ...string) Component {
-	c.C.Requires(names...)
-	return c
+func (c *WC) Child() Component {
+	return c.child
 }
 
 func (c *WC) Run(child Component) Component {
@@ -139,12 +143,12 @@ func (c *WC) Run(child Component) Component {
 	return c
 }
 
-func NewComponent(name string, fn func(BuildCtx) Runable) *C {
+func NewComponent(name string, fn func(Builder) Runable) *C {
 	return &C{name: name, build: fn}
 }
 
-func NewComponentR(name string, fn func(RunCtx) Result) *C {
-	return NewComponent(name, func(bctx BuildCtx) Runable {
+func NewComponentR(name string, fn Runable) *C {
+	return NewComponent(name, func(bctx Builder) Runable {
 		return fn
 	})
 }
@@ -161,11 +165,11 @@ func NewGroup(name string) *CC {
 	}
 }
 
-func NewWrapComponent(name string, fn func(WrapComponent, RunCtx) Result) *WC {
+func NewWrapComponent(name string, fn func(WrapComponent, Evaluator) Result) *WC {
 	c := &WC{C: C{name: name}}
-	c.build = func(bctx BuildCtx) Runable {
-		return func(rctx RunCtx) Result {
-			return fn(c, rctx)
+	c.build = func(bctx Builder) Runable {
+		return func(e Evaluator) Result {
+			return fn(c, e)
 		}
 	}
 	return c
@@ -174,27 +178,33 @@ func NewWrapComponent(name string, fn func(WrapComponent, RunCtx) Result) *WC {
 func NewRetryComponent(tries int, delay time.Duration) *WC {
 	return NewWrapComponent(
 		"retry",
-		func(c WrapComponent, rctx RunCtx) Result {
+		func(c WrapComponent, e Evaluator) Result {
 			for i := 0; i < tries; i++ {
-				if err := rctx.Run(c.Child()); err == nil {
-					return ResultSuccess()
+				if i > 0 {
+					time.Sleep(delay)
 				}
-				time.Sleep(delay)
+				result := e.Evaluate(c.Child())
+				switch result.State() {
+				case RunStateComplete, RunStateRunning:
+					return result
+				}
 			}
 			return ResultError(fmt.Errorf("too many retries"))
 		})
 }
 
 func NewBGComponent() *WC {
-	return NewWrapComponent("background", func(c WrapComponent, rctx RunCtx) Result {
+	return NewWrapComponent("background", func(c WrapComponent, e Evaluator) Result {
 		var wg sync.WaitGroup
+		var result Result
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := rctx.Run(c.Child()); err != nil {
-				rctx.Logger().WithError(err).Errorf("BG")
-			}
+			result = e.Evaluate(c.Child()).Wait()
 		}()
-		return ResultRunning(wg.Wait)
+		return ResultRunning(func() Result {
+			wg.Wait()
+			return result
+		})
 	})
 }
