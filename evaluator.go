@@ -20,6 +20,7 @@ func Run(node Component) error {
 type Evaluator interface {
 	Log() logrus.FieldLogger
 	Evaluate(Component) result.Result
+	Fork(Component) result.Result
 
 	Emit(string, string)
 	Vars() vars.Vars
@@ -89,6 +90,17 @@ func (e *evaluator) Evaluate(node Component) result.Result {
 	return result
 }
 
+func (e *evaluator) Fork(node Component) result.Result {
+	ch := make(chan result.Result)
+	go func(e Evaluator) {
+		defer close(ch)
+		ch <- e.Evaluate(node).Wait()
+	}(e.forkFor(node))
+	return result.Running(func() result.Result {
+		return <-ch
+	})
+}
+
 func (e *evaluator) cloneFor(node Component) *evaluator {
 
 	path := e.path
@@ -105,4 +117,10 @@ func (e *evaluator) cloneFor(node Component) *evaluator {
 		log:    e.log.WithField("path", path),
 		vars:   e.vars,
 	}
+}
+
+func (e *evaluator) forkFor(node Component) *evaluator {
+	fork := e.cloneFor(node)
+	fork.vars = fork.vars.Clone()
+	return fork
 }

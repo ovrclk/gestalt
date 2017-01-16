@@ -24,15 +24,6 @@ type WC struct {
 
 type WrapFn func(WrapComponent, gestalt.Evaluator) result.Result
 
-/* pre/post
-type PPC struct {
-	C
-	child Component
-	pre   Component
-	post  Component
-}
-*/
-
 func NewWrapComponent(name string, wrapper WrapFn) *WC {
 	return &WC{
 		C:       *gestalt.NewComponent(name, nil),
@@ -60,14 +51,7 @@ func NewRetryComponent(tries int, delay time.Duration) *WC {
 
 func NewBGComponent() *WC {
 	return NewWrapComponent("background", func(c WrapComponent, e gestalt.Evaluator) result.Result {
-		ch := make(chan result.Result)
-		go func() {
-			defer close(ch)
-			ch <- e.Evaluate(c.Child()).Wait()
-		}()
-		return result.Running(func() result.Result {
-			return <-ch
-		})
+		return e.Fork(c.Child())
 	})
 }
 
