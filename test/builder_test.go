@@ -55,6 +55,27 @@ func TestVars(t *testing.T) {
 	gestalt.Run(suite)
 }
 
+func TestEnsure(t *testing.T) {
+	ran := false
+	result := gestalt.Run(g.Ensure("a").
+		First(
+			g.SH("producer", "echo", "foo", "bar", "baz").
+				FN(g.P().Head().Capture("a", "b", "c"))).
+		Run(
+			g.SH("failing", "false")).
+		Finally(
+			g.FN("consumer", func(_ gestalt.Evaluator) result.Result {
+				ran = true
+				return result.Complete()
+			})))
+	if result == nil {
+		t.Fatal("error result not returned")
+	}
+	if ran != true {
+		t.Fatal("fnally block didn't run")
+	}
+}
+
 func TestDump(t *testing.T) {
 	//t.SkipNow()
 	gestalt.Dump(g.

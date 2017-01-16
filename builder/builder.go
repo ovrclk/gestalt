@@ -25,6 +25,10 @@ func Retry(tries int) component.WrapComponent {
 	return component.NewRetryComponent(tries, time.Second)
 }
 
+func Ensure(name string) component.EnsureComponent {
+	return component.NewEnsureComponent(name)
+}
+
 func FN(name string, fn gestalt.Runable) gestalt.Component {
 	return gestalt.NewComponentR(name, fn)
 }
