@@ -114,7 +114,9 @@ func logStream(reader io.ReadCloser, log func(fmt ...interface{}), b *bytes.Buff
 			break
 		}
 
-		log(strings.TrimRight(string(buf[0:n]), "\n\r"))
+		if n > 0 {
+			log(strings.TrimRight(string(buf[0:n]), "\n\r"))
+		}
 	}
 }
 
