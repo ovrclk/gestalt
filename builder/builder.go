@@ -29,8 +29,8 @@ func Ensure(name string) component.EnsureComponent {
 	return component.NewEnsureComponent(name)
 }
 
-func FN(name string, fn gestalt.Runable) gestalt.Component {
-	return gestalt.NewComponentR(name, fn)
+func FN(name string, action gestalt.Runable) gestalt.Component {
+	return gestalt.NewComponent(name, action)
 }
 
 func SH(name, cmd string, args ...string) *exec.Cmd {

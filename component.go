@@ -20,19 +20,13 @@ type CompositeComponent interface {
 }
 
 type C struct {
-	name  string
-	build func(Builder) Runable
-	meta  vars.Meta
+	name   string
+	action Runable
+	meta   vars.Meta
 }
 
-func NewComponent(name string, fn func(Builder) Runable) *C {
-	return &C{name: name, build: fn, meta: vars.NewMeta()}
-}
-
-func NewComponentR(name string, fn Runable) *C {
-	return NewComponent(name, func(_ Builder) Runable {
-		return fn
-	})
+func NewComponent(name string, action Runable) *C {
+	return &C{name: name, action: action, meta: vars.NewMeta()}
 }
 
 func (c *C) Name() string {
@@ -49,14 +43,9 @@ func (c *C) WithMeta(m vars.Meta) Component {
 }
 
 func (c *C) Eval(e Evaluator) result.Result {
-	return c.Build(e.Builder)(e)
-}
-
-func (c *C) Build(b Builder) Runable {
-	if c.build == nil {
-		return func(_ Evaluator) result.Result {
-			return result.Error(fmt.Errorf("empty node"))
-		}
+	if c.action == nil {
+		return result.Error(fmt.Errorf("empty node"))
+	} else {
+		return c.action(e)
 	}
-	return c.build(b)
 }

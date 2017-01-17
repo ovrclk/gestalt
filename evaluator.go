@@ -9,8 +9,6 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
-type Builder interface {
-}
 type Runable func(Evaluator) result.Result
 
 func Run(node Component) error {
@@ -26,7 +24,6 @@ type Evaluator interface {
 	Vars() vars.Vars
 
 	Context() context.Context
-	Builder() Builder
 	Stop()
 }
 
@@ -48,10 +45,6 @@ func NewEvaluator() *evaluator {
 		log:    logrus.StandardLogger(),
 		vars:   vars.NewVars(),
 	}
-}
-
-func (e *evaluator) Builder() Builder {
-	return nil
 }
 
 func (e *evaluator) Log() logrus.FieldLogger {

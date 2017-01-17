@@ -44,63 +44,57 @@ func (c *Cmd) WithMeta(m vars.Meta) gestalt.Component {
 }
 
 func (c *Cmd) Eval(e gestalt.Evaluator) result.Result {
-	return c.Build(e.Builder())(e)
-}
+	cmd := exec.CommandContext(e.Context(), c.Path, c.Args...)
 
-func (c *Cmd) Build(_ gestalt.Builder) gestalt.Runable {
-	return func(e gestalt.Evaluator) result.Result {
-		cmd := exec.CommandContext(e.Context(), c.Path, c.Args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return result.Error(err)
+	}
 
-		stdout, err := cmd.StdoutPipe()
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return result.Error(err)
+	}
+
+	e.Log().Debugf("running %v %v", cmd.Path, cmd.Args)
+	if err := cmd.Start(); err != nil {
+		e.Log().WithError(err).Errorf("error running %v", cmd.Path)
+		return result.Error(err)
+	}
+
+	var buf *bytes.Buffer
+	if c.copyStdout() {
+		buf = new(bytes.Buffer)
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		logStream(stdout, e.Log().Debug, buf)
+	}()
+	go func() {
+		defer wg.Done()
+		logStream(stderr, e.Log().Error, nil)
+	}()
+	wg.Wait()
+
+	if err := cmd.Wait(); err != nil {
+		if !expectedExecError(err, e) {
+			e.Log().WithError(err).Error("command failed")
+			return result.Error(err)
+		}
+	}
+
+	if c.copyStdout() {
+		err := c.fn(bufio.NewReader(buf), e)
 		if err != nil {
 			return result.Error(err)
-		}
-
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			return result.Error(err)
-		}
-
-		e.Log().Debugf("running %v %v", cmd.Path, cmd.Args)
-		if err := cmd.Start(); err != nil {
-			e.Log().WithError(err).Errorf("error running %v", cmd.Path)
-			return result.Error(err)
-		}
-
-		var buf *bytes.Buffer
-		if c.copyStdout() {
-			buf = new(bytes.Buffer)
-		}
-
-		var wg sync.WaitGroup
-
-		wg.Add(2)
-		go func() {
-			defer wg.Done()
-			logStream(stdout, e.Log().Debug, buf)
-		}()
-		go func() {
-			defer wg.Done()
-			logStream(stderr, e.Log().Error, nil)
-		}()
-		wg.Wait()
-
-		if err := cmd.Wait(); err != nil {
-			if !expectedExecError(err, e) {
-				e.Log().WithError(err).Error("command failed")
-				return result.Error(err)
-			}
-		}
-
-		if c.copyStdout() {
-			err := c.fn(bufio.NewReader(buf), e)
-			if err != nil {
-				return result.Error(err)
-			}
-			return result.Complete()
 		}
 		return result.Complete()
 	}
+	return result.Complete()
 }
 
 func (c *Cmd) copyStdout() bool {

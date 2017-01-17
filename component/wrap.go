@@ -56,13 +56,7 @@ func NewBGComponent() *WC {
 }
 
 func (c *WC) Eval(e gestalt.Evaluator) result.Result {
-	return c.Build(e.Builder)(e)
-}
-
-func (c *WC) Build(_ gestalt.Builder) gestalt.Runable {
-	return func(e gestalt.Evaluator) result.Result {
-		return c.wrapper(c, e)
-	}
+	return c.wrapper(c, e)
 }
 
 func (c *WC) IsPassThrough() bool {
