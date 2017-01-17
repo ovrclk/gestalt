@@ -6,6 +6,7 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/ovrclk/gestalt"
@@ -71,8 +72,18 @@ func (c *Cmd) Build(_ gestalt.Builder) gestalt.Runable {
 			buf = new(bytes.Buffer)
 		}
 
-		go logStream(stdout, e.Log().Debug, buf)
-		go logStream(stderr, e.Log().Error, nil)
+		var wg sync.WaitGroup
+
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			logStream(stdout, e.Log().Debug, buf)
+		}()
+		go func() {
+			defer wg.Done()
+			logStream(stderr, e.Log().Error, nil)
+		}()
+		wg.Wait()
 
 		if err := cmd.Wait(); err != nil {
 			if !expectedExecError(err, e) {

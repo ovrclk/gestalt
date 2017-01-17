@@ -1,4 +1,4 @@
 test:
-	go test -v ./test
+	go test -v -race ./test
 
 .PHONY: test
