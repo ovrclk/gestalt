@@ -9,7 +9,7 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
-type Runable func(Evaluator) result.Result
+type Action func(Evaluator) result.Result
 
 func Run(node Component) error {
 	return NewEvaluator().Evaluate(node).Wait().Err()

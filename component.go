@@ -22,11 +22,11 @@ type CompositeComponent interface {
 
 type C struct {
 	name   string
-	action Runable
+	action Action
 	meta   vars.Meta
 }
 
-func NewComponent(name string, action Runable) *C {
+func NewComponent(name string, action Action) *C {
 	return &C{name: name, action: action, meta: vars.NewMeta()}
 }
 

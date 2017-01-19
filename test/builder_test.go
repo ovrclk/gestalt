@@ -105,7 +105,7 @@ func consumer(t *testing.T) gestalt.Component {
 		WithMeta(g.M().Require("a", "b", "c"))
 }
 
-func readFields(t *testing.T) gestalt.Runable {
+func readFields(t *testing.T) gestalt.Action {
 	return func(e gestalt.Evaluator) result.Result {
 
 		vars := e.Vars()
