@@ -70,15 +70,28 @@ func (e *evaluator) Stop() {
 func (e *evaluator) Evaluate(node Component) result.Result {
 	child := e.cloneFor(node)
 
-	child.Log().Debug("start")
+	m := node.Meta()
+	vars.ImportTo(m, e.vars, child.vars)
+	e.tracePreEval(child, node)
 
-	result := node.Eval(child)
+	result := child.doEvaluate(node)
+
+	vars.ExportTo(m, child.vars, e.vars)
+	e.tracePostEval(child, node)
+
+	return result
+}
+
+func (e *evaluator) doEvaluate(node Component) result.Result {
+	e.Log().Debug("start")
+
+	result := node.Eval(e)
 
 	if result.IsError() {
-		child.Log().WithError(result.Err()).Error("eval failed")
+		e.Log().WithError(result.Err()).Error("eval failed")
 	}
 
-	child.Log().Debugf("end -> %v", result)
+	e.Log().Debugf("end -> %v", result)
 
 	return result
 }
@@ -108,7 +121,7 @@ func (e *evaluator) cloneFor(node Component) *evaluator {
 		ctx:    ctx,
 		cancel: cancel,
 		log:    e.log.WithField("path", path),
-		vars:   e.vars,
+		vars:   vars.NewVars(),
 	}
 }
 
@@ -116,4 +129,12 @@ func (e *evaluator) forkFor(node Component) *evaluator {
 	fork := e.cloneFor(node)
 	fork.vars = fork.vars.Clone()
 	return fork
+}
+
+func (e *evaluator) tracePreEval(child *evaluator, node Component) {
+	//e.Log().Debugf("pre-eval: parent.vars: %v child.vars: %v meta: %v", e.vars, child.vars, m)
+}
+
+func (e *evaluator) tracePostEval(child *evaluator, node Component) {
+	//e.Log().Debugf("post-eval: parent.vars: %v child.vars: %v meta: %v", e.vars, child.vars, m)
 }

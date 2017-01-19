@@ -12,6 +12,7 @@ type Component interface {
 	IsPassThrough() bool
 	Eval(Evaluator) result.Result
 	WithMeta(vars.Meta) Component
+	Meta() vars.Meta
 }
 
 type CompositeComponent interface {
@@ -40,6 +41,10 @@ func (c *C) IsPassThrough() bool {
 func (c *C) WithMeta(m vars.Meta) Component {
 	c.meta = c.meta.Merge(m)
 	return c
+}
+
+func (c *C) Meta() vars.Meta {
+	return c.meta
 }
 
 func (c *C) Eval(e Evaluator) result.Result {

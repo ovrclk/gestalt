@@ -11,7 +11,7 @@ import (
 )
 
 func TestBG(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	gestalt.Run(
 		g.Suite("walker-dev").
 			Run(g.SH("cleanup", "echo", "cleaning")).
@@ -22,47 +22,21 @@ func TestBG(t *testing.T) {
 			Run(g.SH("okay", "sleep 1")))
 }
 
-func TestParse(t *testing.T) {
-	gestalt.Run(
-		g.Suite("make-vars").
-			Run(g.SH("producer", "echo", "foo", "bar", "baz").
-				FN(g.P().Capture("a", "b", "c"))).
-			Run(g.FN("consumer", readFields(t))))
-}
-
 func TestVars(t *testing.T) {
 
-	producer := g.
-		SH("producer", "echo", "foo", "bar", "baz").
-		FN(g.P().Head().Capture("a", "b", "c")).
-		WithMeta(g.M().
-			Export("a", "b", "c"))
-
-		//Requires("foo", "bar")
-		//Exports("a", "b", "c")
-
-	consumer := g.
-		FN("consumer", readFields(t)).
-		WithMeta(g.M().
-			Require("a", "b", "c"))
-
-	suite := g.Suite("export-vars").
-		Run(producer).
-		Run(consumer)
-		//ExportsFrom("producer").
-		//RequiresFor("producer")
+	suite := g.Suite("siblings").
+		Run(producer(t)).
+		Run(consumer(t))
 
 	gestalt.Run(suite)
 }
 
 func TestEnsure(t *testing.T) {
+	t.SkipNow()
 	ran := false
 	result := gestalt.Run(g.Ensure("a").
-		First(
-			g.SH("producer", "echo", "foo", "bar", "baz").
-				FN(g.P().Head().Capture("a", "b", "c"))).
-		Run(
-			g.SH("failing", "false")).
+		First(producer(t)).
+		Run(g.SH("failing", "false")).
 		Finally(
 			g.FN("consumer", func(_ gestalt.Evaluator) result.Result {
 				ran = true
@@ -77,13 +51,24 @@ func TestEnsure(t *testing.T) {
 }
 
 func TestDump(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	gestalt.Dump(g.
 		Suite("a").
 		Run(g.BG().Run(g.SH("b", "echo", "foo", "bar"))).
 		Run(g.SH("c", "echo", "hello")).
 		Run(g.Group("z").
 			Run(g.Retry(10).Run(g.SH("x", "echo", "sup")))))
+}
+
+func producer(t *testing.T) gestalt.Component {
+	return g.SH("producer", "echo", "foo", "bar", "baz").
+		FN(g.P().Capture("a", "b", "c")).
+		WithMeta(g.M().Export("a", "b", "c"))
+}
+
+func consumer(t *testing.T) gestalt.Component {
+	return g.FN("consumer", readFields(t)).
+		WithMeta(g.M().Require("a", "b", "c"))
 }
 
 func readFields(t *testing.T) gestalt.Runable {

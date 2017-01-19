@@ -17,7 +17,7 @@ import (
 type CmdFn func(*bufio.Reader, gestalt.Evaluator) error
 
 type Cmd struct {
-	gestalt.C
+	cmp  *gestalt.C
 	Path string
 	Args []string
 	Env  []string
@@ -27,19 +27,31 @@ type Cmd struct {
 
 func NewCmd(name string, path string, args []string) *Cmd {
 	return &Cmd{
-		C:    *gestalt.NewComponent(name, nil),
+		cmp:  gestalt.NewComponent(name, nil),
 		Path: path,
 		Args: args,
 	}
 }
 
-func (c *Cmd) FN(fn CmdFn) *Cmd {
-	c.fn = fn
-	return c
+func (c *Cmd) Name() string {
+	return c.cmp.Name()
+}
+
+func (c *Cmd) IsPassThrough() bool {
+	return false
 }
 
 func (c *Cmd) WithMeta(m vars.Meta) gestalt.Component {
-	c.C.WithMeta(m)
+	c.cmp.WithMeta(m)
+	return c
+}
+
+func (c *Cmd) Meta() vars.Meta {
+	return c.cmp.Meta()
+}
+
+func (c *Cmd) FN(fn CmdFn) *Cmd {
+	c.fn = fn
 	return c
 }
 

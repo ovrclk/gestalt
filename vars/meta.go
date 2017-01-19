@@ -38,6 +38,6 @@ func (m *meta) Export(keys ...string) Meta {
 func (m *meta) Merge(other Meta) Meta {
 	return &meta{
 		requires: append(m.requires, other.Requires()...),
-		exports:  append(m.exports, other.Requires()...),
+		exports:  append(m.exports, other.Exports()...),
 	}
 }
