@@ -17,7 +17,7 @@ type WrapComponent interface {
 
 /* wrapped */
 type WC struct {
-	gestalt.C
+	cmp     *gestalt.C
 	wrapper WrapFn
 	child   gestalt.Component
 }
@@ -26,7 +26,7 @@ type WrapFn func(WrapComponent, gestalt.Evaluator) result.Result
 
 func NewWrapComponent(name string, wrapper WrapFn) *WC {
 	return &WC{
-		C:       *gestalt.NewComponent(name, nil),
+		cmp:     gestalt.NewComponent(name, nil),
 		wrapper: wrapper,
 	}
 }
@@ -63,13 +63,25 @@ func (c *WC) IsPassThrough() bool {
 	return true
 }
 
-func (c *WC) Children() []gestalt.Component {
-	return []gestalt.Component{c.Child()}
+func (c *WC) Name() string {
+	return c.cmp.Name()
+}
+
+func (c *WC) Meta() vars.Meta {
+	m := c.cmp.Meta()
+	for _, child := range c.Children() {
+		m = m.Merge(child.Meta())
+	}
+	return m
 }
 
 func (c *WC) WithMeta(m vars.Meta) gestalt.Component {
-	c.C.WithMeta(m)
+	c.cmp.WithMeta(m)
 	return c
+}
+
+func (c *WC) Children() []gestalt.Component {
+	return []gestalt.Component{c.Child()}
 }
 
 func (c *WC) Child() gestalt.Component {

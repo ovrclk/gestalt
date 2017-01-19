@@ -22,12 +22,19 @@ func TestBG(t *testing.T) {
 			Run(g.SH("okay", "sleep 1")))
 }
 
-func TestVars(t *testing.T) {
-
+func TestVars_siblings(t *testing.T) {
 	suite := g.Suite("siblings").
 		Run(producer(t)).
 		Run(consumer(t))
+	gestalt.Run(suite)
+}
 
+func TestVars_passthrough(t *testing.T) {
+	suite := g.Suite("siblings").
+		Run(
+			g.Retry(1).
+				Run(producer(t))).
+		Run(consumer(t))
 	gestalt.Run(suite)
 }
 
