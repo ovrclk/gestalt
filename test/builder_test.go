@@ -11,8 +11,8 @@ import (
 )
 
 func TestBG(t *testing.T) {
-	t.SkipNow()
-	gestalt.Run(
+	//t.SkipNow()
+	runComponent(t,
 		g.Suite("walker-dev").
 			Run(g.SH("cleanup", "echo", "cleaning")).
 			Run(
@@ -26,45 +26,72 @@ func TestVars_siblings(t *testing.T) {
 	suite := g.Suite("siblings").
 		Run(producer(t)).
 		Run(consumer(t))
-	gestalt.Run(suite)
+	runComponent(t, suite)
 }
 
 func TestVars_passthrough(t *testing.T) {
-	suite := g.Suite("siblings").
+	suite := g.Suite("has-passthru").
 		Run(
 			g.Retry(1).
 				Run(producer(t))).
 		Run(consumer(t))
-	gestalt.Run(suite)
+
+	runComponent(t, suite)
+}
+
+func TestVars_group(t *testing.T) {
+	suite := g.Suite("has-embedded").
+		Run(g.Group("has-passthru").
+			Run(producer(t)).
+			WithMeta(g.M().Export("a", "b", "c"))).
+		Run(consumer(t))
+	runComponent(t, suite)
+}
+
+func TestVars_suite(t *testing.T) {
+	suite := g.Suite("has-embedded").
+		Run(g.Suite("has-passthru").
+			Run(producer(t)).
+			WithMeta(g.M().Export("a", "b", "c"))).
+		Run(consumer(t))
+	runComponent(t, suite)
 }
 
 func TestEnsure(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	ran := false
-	result := gestalt.Run(g.Ensure("a").
+	c := g.Ensure("a").
 		First(producer(t)).
 		Run(g.SH("failing", "false")).
 		Finally(
 			g.FN("consumer", func(_ gestalt.Evaluator) result.Result {
 				ran = true
 				return result.Complete()
-			})))
-	if result == nil {
-		t.Fatal("error result not returned")
+			}))
+
+	if err := gestalt.Run(c); err == nil {
+		t.Errorf("expected error")
 	}
+
 	if ran != true {
 		t.Fatal("fnally block didn't run")
 	}
 }
 
 func TestDump(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	gestalt.Dump(g.
 		Suite("a").
 		Run(g.BG().Run(g.SH("b", "echo", "foo", "bar"))).
 		Run(g.SH("c", "echo", "hello")).
 		Run(g.Group("z").
 			Run(g.Retry(10).Run(g.SH("x", "echo", "sup")))))
+}
+
+func runComponent(t *testing.T, c gestalt.Component) {
+	if err := gestalt.Run(c); err != nil {
+		t.Errorf("run failed: %v", err)
+	}
 }
 
 func producer(t *testing.T) gestalt.Component {

@@ -13,21 +13,21 @@ type CompositeComponent interface {
 
 /* composite */
 type CC struct {
-	gestalt.C
+	cmp      *gestalt.C
 	terminal bool
 	children []gestalt.Component
 }
 
 func NewSuite(name string) *CC {
 	return &CC{
-		C:        *gestalt.NewComponent(name, nil),
+		cmp:      gestalt.NewComponent(name, nil),
 		terminal: true,
 	}
 }
 
 func NewGroup(name string) *CC {
 	return &CC{
-		C: *gestalt.NewComponent(name, nil),
+		cmp: gestalt.NewComponent(name, nil),
 	}
 }
 
@@ -35,9 +35,21 @@ func (c *CC) Children() []gestalt.Component {
 	return c.children
 }
 
+func (c *CC) Name() string {
+	return c.cmp.Name()
+}
+
+func (c *CC) Meta() vars.Meta {
+	return c.cmp.Meta()
+}
+
 func (c *CC) WithMeta(m vars.Meta) gestalt.Component {
-	c.C.WithMeta(m)
+	c.cmp.WithMeta(m)
 	return c
+}
+
+func (c *CC) IsPassThrough() bool {
+	return false
 }
 
 func (c *CC) Run(child gestalt.Component) CompositeComponent {
