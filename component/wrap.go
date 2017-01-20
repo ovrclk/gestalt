@@ -9,7 +9,7 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
-type WrapComponent interface {
+type Wrap interface {
 	gestalt.Component
 	Child() gestalt.Component
 	Run(gestalt.Component) gestalt.Component
@@ -22,19 +22,19 @@ type WC struct {
 	child   gestalt.Component
 }
 
-type WrapFn func(WrapComponent, gestalt.Evaluator) result.Result
+type WrapFn func(Wrap, gestalt.Evaluator) result.Result
 
-func NewWrapComponent(name string, wrapper WrapFn) *WC {
+func NewWrap(name string, wrapper WrapFn) *WC {
 	return &WC{
 		cmp:     gestalt.NewComponent(name, nil),
 		wrapper: wrapper,
 	}
 }
 
-func NewRetryComponent(tries int, delay time.Duration) *WC {
-	return NewWrapComponent(
+func NewRetry(tries int, delay time.Duration) *WC {
+	return NewWrap(
 		"retry",
-		func(c WrapComponent, e gestalt.Evaluator) result.Result {
+		func(c Wrap, e gestalt.Evaluator) result.Result {
 			for i := 0; i < tries; i++ {
 				if i > 0 {
 					time.Sleep(delay)
@@ -49,8 +49,8 @@ func NewRetryComponent(tries int, delay time.Duration) *WC {
 		})
 }
 
-func NewBGComponent() *WC {
-	return NewWrapComponent("background", func(c WrapComponent, e gestalt.Evaluator) result.Result {
+func NewBG() *WC {
+	return NewWrap("background", func(c Wrap, e gestalt.Evaluator) result.Result {
 		return e.Fork(c.Child())
 	})
 }

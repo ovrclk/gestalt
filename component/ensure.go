@@ -6,11 +6,11 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
-type EnsureComponent interface {
+type Ensure interface {
 	gestalt.Component
-	First(gestalt.Component) EnsureComponent
-	Run(gestalt.Component) EnsureComponent
-	Finally(gestalt.Component) EnsureComponent
+	First(gestalt.Component) Ensure
+	Run(gestalt.Component) Ensure
+	Finally(gestalt.Component) Ensure
 }
 
 type EC struct {
@@ -21,23 +21,23 @@ type EC struct {
 	post  gestalt.Component
 }
 
-func NewEnsureComponent(name string) *EC {
+func NewEnsure(name string) *EC {
 	return &EC{
 		cmp: gestalt.NewComponent(name, nil),
 	}
 }
 
-func (c *EC) First(child gestalt.Component) EnsureComponent {
+func (c *EC) First(child gestalt.Component) Ensure {
 	c.pre = child
 	return c
 }
 
-func (c *EC) Run(child gestalt.Component) EnsureComponent {
+func (c *EC) Run(child gestalt.Component) Ensure {
 	c.child = child
 	return c
 }
 
-func (c *EC) Finally(child gestalt.Component) EnsureComponent {
+func (c *EC) Finally(child gestalt.Component) Ensure {
 	c.post = child
 	return c
 }

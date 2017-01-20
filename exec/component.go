@@ -16,7 +16,12 @@ import (
 
 type CmdFn func(*bufio.Reader, gestalt.Evaluator) error
 
-type Cmd struct {
+type Cmd interface {
+	gestalt.Component
+	FN(CmdFn) Cmd
+}
+
+type CC struct {
 	cmp  gestalt.Component
 	Path string
 	Args []string
@@ -25,37 +30,37 @@ type Cmd struct {
 	fn CmdFn
 }
 
-func NewCmd(name string, path string, args []string) *Cmd {
-	return &Cmd{
+func NewCmd(name string, path string, args []string) Cmd {
+	return &CC{
 		cmp:  gestalt.NewComponent(name, nil),
 		Path: path,
 		Args: args,
 	}
 }
 
-func (c *Cmd) Name() string {
+func (c *CC) Name() string {
 	return c.cmp.Name()
 }
 
-func (c *Cmd) IsPassThrough() bool {
+func (c *CC) IsPassThrough() bool {
 	return false
 }
 
-func (c *Cmd) WithMeta(m vars.Meta) gestalt.Component {
+func (c *CC) WithMeta(m vars.Meta) gestalt.Component {
 	c.cmp.WithMeta(m)
 	return c
 }
 
-func (c *Cmd) Meta() vars.Meta {
+func (c *CC) Meta() vars.Meta {
 	return c.cmp.Meta()
 }
 
-func (c *Cmd) FN(fn CmdFn) *Cmd {
+func (c *CC) FN(fn CmdFn) Cmd {
 	c.fn = fn
 	return c
 }
 
-func (c *Cmd) Eval(e gestalt.Evaluator) result.Result {
+func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 	cmd := exec.CommandContext(e.Context(), c.Path, c.Args...)
 
 	stdout, err := cmd.StdoutPipe()
@@ -109,7 +114,7 @@ func (c *Cmd) Eval(e gestalt.Evaluator) result.Result {
 	return result.Complete()
 }
 
-func (c *Cmd) copyStdout() bool {
+func (c *CC) copyStdout() bool {
 	return c.fn != nil
 }
 

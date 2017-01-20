@@ -9,35 +9,35 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
-func Group(name string) component.GroupComponent {
+func Group(name string) component.Group {
 	return component.NewGroup(name)
 }
 
-func Suite(name string) component.GroupComponent {
+func Suite(name string) component.Group {
 	return component.NewSuite(name)
 }
 
-func BG() component.WrapComponent {
-	return component.NewBGComponent()
+func BG() component.Wrap {
+	return component.NewBG()
 }
 
-func Retry(tries int) component.WrapComponent {
-	return component.NewRetryComponent(tries, time.Second)
+func Retry(tries int) component.Wrap {
+	return component.NewRetry(tries, time.Second)
 }
 
-func Ensure(name string) component.EnsureComponent {
-	return component.NewEnsureComponent(name)
+func Ensure(name string) component.Ensure {
+	return component.NewEnsure(name)
 }
 
 func FN(name string, action gestalt.Action) gestalt.Component {
 	return gestalt.NewComponent(name, action)
 }
 
-func SH(name, cmd string, args ...string) *exec.Cmd {
+func SH(name, cmd string, args ...string) exec.Cmd {
 	return exec.SH(name, cmd, args...)
 }
 
-func EXEC(name, cmd string, args ...string) *exec.Cmd {
+func EXEC(name, cmd string, args ...string) exec.Cmd {
 	return exec.EXEC(name, cmd, args...)
 }
 

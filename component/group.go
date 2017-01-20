@@ -6,9 +6,9 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
-type GroupComponent interface {
+type Group interface {
 	gestalt.CompositeComponent
-	Run(gestalt.Component) GroupComponent
+	Run(gestalt.Component) Group
 }
 
 /* group component */
@@ -52,7 +52,7 @@ func (c *GC) IsPassThrough() bool {
 	return false
 }
 
-func (c *GC) Run(child gestalt.Component) GroupComponent {
+func (c *GC) Run(child gestalt.Component) Group {
 	c.children = append(c.children, child)
 	return c
 }
