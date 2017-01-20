@@ -128,9 +128,9 @@ func (e *evaluator) forkFor(node Component) *evaluator {
 }
 
 func (e *evaluator) tracePreEval(child *evaluator, node Component) {
-	e.Log().Debugf("pre-eval: parent.vars: %v child.vars: %v meta: %v", e.vars, child.vars, node)
+	//e.Log().Debugf("pre-eval: parent.vars: %v child.vars: %v meta: %v", e.vars, child.vars, node)
 }
 
 func (e *evaluator) tracePostEval(child *evaluator, node Component) {
-	e.Log().Debugf("post-eval: parent.vars: %v child.vars: %v meta: %v", e.vars, child.vars, node)
+	//e.Log().Debugf("post-eval: parent.vars: %v child.vars: %v meta: %v", e.vars, child.vars, node)
 }
