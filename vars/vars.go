@@ -3,12 +3,12 @@ package vars
 type Vars interface {
 	Put(string, string)
 	Get(string) string
+	Has(string) bool
+	Keys() []string
 	Count() int
 
-	Clone() Vars
-
-	Keys() []string
 	Merge(Vars) Vars
+	Clone() Vars
 }
 
 type varmap struct {
@@ -33,6 +33,11 @@ func (v *varmap) Get(key string) string {
 
 func (v *varmap) Count() int {
 	return len(v.values)
+}
+
+func (v *varmap) Has(key string) bool {
+	_, ok := v.values[key]
+	return ok
 }
 
 func (v *varmap) Keys() []string {
