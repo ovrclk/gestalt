@@ -13,7 +13,7 @@ type GroupComponent interface {
 
 /* group component */
 type GC struct {
-	cmp      *gestalt.C
+	cmp      gestalt.Component
 	terminal bool
 	children []gestalt.Component
 }

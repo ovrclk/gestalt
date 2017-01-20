@@ -17,7 +17,7 @@ import (
 type CmdFn func(*bufio.Reader, gestalt.Evaluator) error
 
 type Cmd struct {
-	cmp  *gestalt.C
+	cmp  gestalt.Component
 	Path string
 	Args []string
 	Env  []string

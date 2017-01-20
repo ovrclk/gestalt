@@ -17,7 +17,7 @@ type WrapComponent interface {
 
 /* wrapped */
 type WC struct {
-	cmp     *gestalt.C
+	cmp     gestalt.Component
 	wrapper WrapFn
 	child   gestalt.Component
 }

@@ -14,7 +14,8 @@ type EnsureComponent interface {
 }
 
 type EC struct {
-	gestalt.C
+	cmp gestalt.Component
+
 	pre   gestalt.Component
 	child gestalt.Component
 	post  gestalt.Component
@@ -22,8 +23,36 @@ type EC struct {
 
 func NewEnsureComponent(name string) *EC {
 	return &EC{
-		C: *gestalt.NewComponent(name, nil),
+		cmp: gestalt.NewComponent(name, nil),
 	}
+}
+
+func (c *EC) First(child gestalt.Component) EnsureComponent {
+	c.pre = child
+	return c
+}
+
+func (c *EC) Run(child gestalt.Component) EnsureComponent {
+	c.child = child
+	return c
+}
+
+func (c *EC) Finally(child gestalt.Component) EnsureComponent {
+	c.post = child
+	return c
+}
+
+func (c *EC) Name() string {
+	return c.cmp.Name()
+}
+
+func (c *EC) Meta() vars.Meta {
+	return c.cmp.Meta()
+}
+
+func (c *EC) WithMeta(m vars.Meta) gestalt.Component {
+	c.cmp.WithMeta(m)
+	return c
 }
 
 func (c *EC) IsPassThrough() bool {
@@ -42,26 +71,6 @@ func (c *EC) Children() []gestalt.Component {
 		children = append(children, c.post)
 	}
 	return children
-}
-
-func (c *EC) First(child gestalt.Component) EnsureComponent {
-	c.pre = child
-	return c
-}
-
-func (c *EC) Run(child gestalt.Component) EnsureComponent {
-	c.child = child
-	return c
-}
-
-func (c *EC) Finally(child gestalt.Component) EnsureComponent {
-	c.post = child
-	return c
-}
-
-func (c *EC) WithMeta(m vars.Meta) gestalt.Component {
-	c.C.WithMeta(m)
-	return c
 }
 
 func (c *EC) Eval(e gestalt.Evaluator) result.Result {
