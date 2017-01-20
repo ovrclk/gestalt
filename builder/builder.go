@@ -9,11 +9,11 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
-func Group(name string) component.CompositeComponent {
+func Group(name string) component.GroupComponent {
 	return component.NewGroup(name)
 }
 
-func Suite(name string) component.CompositeComponent {
+func Suite(name string) component.GroupComponent {
 	return component.NewSuite(name)
 }
 

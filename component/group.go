@@ -6,58 +6,58 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
-type CompositeComponent interface {
+type GroupComponent interface {
 	gestalt.CompositeComponent
-	Run(gestalt.Component) CompositeComponent
+	Run(gestalt.Component) GroupComponent
 }
 
-/* composite */
-type CC struct {
+/* group component */
+type GC struct {
 	cmp      *gestalt.C
 	terminal bool
 	children []gestalt.Component
 }
 
-func NewSuite(name string) *CC {
-	return &CC{
+func NewSuite(name string) *GC {
+	return &GC{
 		cmp:      gestalt.NewComponent(name, nil),
 		terminal: true,
 	}
 }
 
-func NewGroup(name string) *CC {
-	return &CC{
+func NewGroup(name string) *GC {
+	return &GC{
 		cmp: gestalt.NewComponent(name, nil),
 	}
 }
 
-func (c *CC) Children() []gestalt.Component {
+func (c *GC) Children() []gestalt.Component {
 	return c.children
 }
 
-func (c *CC) Name() string {
+func (c *GC) Name() string {
 	return c.cmp.Name()
 }
 
-func (c *CC) Meta() vars.Meta {
+func (c *GC) Meta() vars.Meta {
 	return c.cmp.Meta()
 }
 
-func (c *CC) WithMeta(m vars.Meta) gestalt.Component {
+func (c *GC) WithMeta(m vars.Meta) gestalt.Component {
 	c.cmp.WithMeta(m)
 	return c
 }
 
-func (c *CC) IsPassThrough() bool {
+func (c *GC) IsPassThrough() bool {
 	return false
 }
 
-func (c *CC) Run(child gestalt.Component) CompositeComponent {
+func (c *GC) Run(child gestalt.Component) GroupComponent {
 	c.children = append(c.children, child)
 	return c
 }
 
-func (c *CC) Eval(e gestalt.Evaluator) result.Result {
+func (c *GC) Eval(e gestalt.Evaluator) result.Result {
 
 	rset := result.NewSet()
 
