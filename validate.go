@@ -1,0 +1,65 @@
+package gestalt
+
+import "github.com/deckarep/golang-set"
+
+func Validate(c Component) []Unresolved {
+	v := NewValidator()
+	Walk(c, v)
+	return v.unresolved
+}
+
+type Unresolved struct {
+	Path string
+	Name string
+}
+
+type validator struct {
+	top        *state
+	stack      []*state
+	unresolved []Unresolved
+}
+
+type state struct {
+	path     string
+	resolved mapset.Set
+}
+
+func NewValidator() *validator {
+	top := &state{"", mapset.NewSet()}
+	return &validator{
+		stack: []*state{},
+		top:   top,
+	}
+}
+
+func (v *validator) Push(c Component) {
+
+	path := pushPath(v.top.path, c)
+
+	var newtop *state
+	if c.IsPassThrough() {
+		newtop = &state{path, v.top.resolved.Clone()}
+	} else {
+		newtop = &state{path, mapset.NewSet()}
+	}
+
+	for _, k := range c.Meta().Requires() {
+		if !v.top.resolved.Contains(k) {
+			v.unresolved = append(v.unresolved, Unresolved{path, k})
+		}
+		newtop.resolved.Add(k)
+	}
+
+	v.stack = append(v.stack, v.top)
+	v.top = newtop
+}
+
+func (v *validator) Pop(c Component) {
+	last := len(v.stack) - 1
+	v.top = v.stack[last]
+	v.stack = v.stack[0:last]
+
+	for _, k := range c.Meta().Exports() {
+		v.top.resolved.Add(k)
+	}
+}

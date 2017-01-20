@@ -4,7 +4,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt"
 	g "github.com/ovrclk/gestalt/builder"
 	"github.com/ovrclk/gestalt/result"
@@ -145,6 +144,6 @@ func readFields(t *testing.T) gestalt.Action {
 }
 
 func TestMain(m *testing.M) {
-	logrus.SetLevel(logrus.DebugLevel)
+	//logrus.SetLevel(logrus.DebugLevel)
 	os.Exit(m.Run())
 }
