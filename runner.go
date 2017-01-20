@@ -56,7 +56,7 @@ func (r *runner) Run() error {
 	case opts.cmdShow.FullCommand():
 		return r.doShow(opts)
 	case opts.cmdEval.FullCommand():
-		return r.doEvaluate(opts)
+		return r.doEval(opts)
 	}
 
 	return fmt.Errorf("unknown command")
@@ -86,7 +86,7 @@ func newOptions() *options {
 	return opts
 }
 
-func (r *runner) doEvaluate(opts *options) error {
+func (r *runner) doEval(opts *options) error {
 	e := NewEvaluator()
 
 	if opts.vars != nil {
