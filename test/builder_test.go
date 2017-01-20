@@ -69,13 +69,23 @@ func TestEnsure(t *testing.T) {
 				return result.Complete()
 			}))
 
-	if err := gestalt.Run(c); err == nil {
+	if err := gestalt.RunWith(c, []string{}); err == nil {
 		t.Errorf("expected error")
 	}
 
 	if ran != true {
 		t.Fatal("fnally block didn't run")
 	}
+}
+
+func TestCliVars(t *testing.T) {
+	args := []string{
+		"-sa=foo",
+		"-sb=bar",
+		"-sc=baz",
+	}
+
+	runComponentWith(t, consumer(t), args)
 }
 
 func TestDump(t *testing.T) {
@@ -89,7 +99,11 @@ func TestDump(t *testing.T) {
 }
 
 func runComponent(t *testing.T, c gestalt.Component) {
-	if err := gestalt.Run(c); err != nil {
+	runComponentWith(t, c, []string{})
+}
+
+func runComponentWith(t *testing.T, c gestalt.Component, args []string) {
+	if err := gestalt.RunWith(c, args); err != nil {
 		t.Errorf("run failed: %v", err)
 	}
 }
