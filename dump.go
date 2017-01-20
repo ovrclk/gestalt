@@ -2,38 +2,29 @@ package gestalt
 
 import "fmt"
 
-type Dumper interface {
-	Dump(Component)
+func Dump(c Component) {
+	Walk(c, newDumper())
 }
 
 type dumper struct {
 	depth int
 }
 
-func Dump(c Component) {
-	NewDumper().Dump(c)
-}
-
-func NewDumper() Dumper {
+func newDumper() *dumper {
 	return &dumper{depth: -1}
 }
 
-func (d *dumper) Dump(c Component) {
-	d.cloneFor(c).dump(c)
+func (d *dumper) Push(c Component) {
+	d.depth += 1
+	d.display(c)
 }
 
-func (d *dumper) cloneFor(_ Component) *dumper {
-	return &dumper{depth: d.depth + 1}
+func (d *dumper) Pop(c Component) {
+	d.depth -= 1
 }
 
-func (d *dumper) dump(c Component) {
+func (d *dumper) display(c Component) {
 	fmt.Printf("%*s", d.depth*2+1, "")
 	fmt.Printf("- %s", c.Name())
 	fmt.Printf("\n")
-
-	if parent, ok := c.(CompositeComponent); ok {
-		for _, child := range parent.Children() {
-			d.Dump(child)
-		}
-	}
 }
