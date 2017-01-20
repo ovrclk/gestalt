@@ -1,9 +1,21 @@
 package gestalt
 
-import "github.com/deckarep/golang-set"
+import (
+	"github.com/deckarep/golang-set"
+	"github.com/ovrclk/gestalt/vars"
+)
 
 func Validate(c Component) []Unresolved {
+	return ValidateWith(c, vars.NewVars())
+}
+
+func ValidateWith(c Component, vars vars.Vars) []Unresolved {
 	v := NewValidator()
+
+	for _, k := range vars.Keys() {
+		v.top.resolved.Add(k)
+	}
+
 	Walk(c, v)
 	return v.unresolved
 }

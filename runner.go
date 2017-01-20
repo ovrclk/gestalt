@@ -68,8 +68,9 @@ type options struct {
 
 	vars *map[string]string
 
-	cmdShow *kingpin.CmdClause
-	cmdEval *kingpin.CmdClause
+	cmdShow     *kingpin.CmdClause
+	cmdEval     *kingpin.CmdClause
+	cmdValidate *kingpin.CmdClause
 }
 
 func newOptions() *options {
@@ -80,8 +81,9 @@ func newOptions() *options {
 
 	opts.vars = opts.app.Flag("set", "set variables").Short('s').StringMap()
 
-	opts.cmdShow = opts.app.Command("show", "display component tree")
 	opts.cmdEval = opts.app.Command("eval", "run components").Default()
+	opts.cmdShow = opts.app.Command("show", "display component tree")
+	opts.cmdValidate = opts.app.Command("validate", "validate vars")
 
 	return opts
 }
@@ -99,4 +101,26 @@ func (r *runner) doEval(opts *options) error {
 func (r *runner) doShow(opts *options) error {
 	Dump(r.cmp)
 	return nil
+}
+
+func (r *runner) doValidate(opts *options) error {
+
+	ivars := vars.NewVars()
+
+	if opts.vars != nil {
+		ivars.Merge(vars.FromMap(*opts.vars))
+	}
+
+	missing := ValidateWith(r.cmp, ivars)
+
+	if len(missing) == 0 {
+		return nil
+	}
+
+	for _, m := range missing {
+		opts.app.Errorf("Missing variables:\n")
+		opts.app.Errorf("%v.%v", m.Path, m.Name)
+	}
+
+	return fmt.Errorf("missing variables")
 }
