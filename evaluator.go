@@ -2,7 +2,6 @@ package gestalt
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt/result"
@@ -104,14 +103,15 @@ func (e *evaluator) Fork(node Component) result.Result {
 }
 
 func (e *evaluator) cloneFor(node Component) *evaluator {
+	return e.cloneWithPath(pushPath(e.path, node))
+}
 
-	path := e.path
-	if !node.IsPassThrough() {
-		path = fmt.Sprintf("%v/%v", path, node.Name())
-	}
+func (e *evaluator) forkFor(node Component) *evaluator {
+	return e.cloneWithPath(e.path)
+}
 
+func (e *evaluator) cloneWithPath(path string) *evaluator {
 	ctx, cancel := context.WithCancel(e.ctx)
-
 	return &evaluator{
 		path:   path,
 		ctx:    ctx,
@@ -119,12 +119,6 @@ func (e *evaluator) cloneFor(node Component) *evaluator {
 		log:    e.log.WithField("path", path),
 		vars:   vars.NewVars(),
 	}
-}
-
-func (e *evaluator) forkFor(node Component) *evaluator {
-	fork := e.cloneFor(node)
-	fork.vars = fork.vars.Clone()
-	return fork
 }
 
 func (e *evaluator) tracePreEval(child *evaluator, node Component) {
