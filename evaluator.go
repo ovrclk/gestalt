@@ -32,12 +32,16 @@ type evaluator struct {
 }
 
 func NewEvaluator() *evaluator {
+	return NewEvaluatorWithLogger(logrus.StandardLogger())
+}
+
+func NewEvaluatorWithLogger(logger *logrus.Logger) *evaluator {
 	ctx, cancel := context.WithCancel(context.TODO())
 	return &evaluator{
 		path:   "",
 		ctx:    ctx,
 		cancel: cancel,
-		log:    logrus.StandardLogger(),
+		log:    logger,
 		vars:   vars.NewVars(),
 	}
 }

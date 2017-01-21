@@ -68,9 +68,7 @@ func TestEnsure(t *testing.T) {
 				return result.Complete()
 			}))
 
-	if err := gestalt.RunWith(c, []string{}); err == nil {
-		t.Errorf("expected error")
-	}
+	assertGestaltFails(t, c, []string{})
 
 	if ran != true {
 		t.Fatal("fnally block didn't run")
@@ -84,7 +82,7 @@ func TestCliVars(t *testing.T) {
 		"-sc=baz",
 	}
 
-	runComponentWith(t, consumer(t), args)
+	assertGestaltSuccess(t, consumer(t), args)
 }
 
 func TestDump(t *testing.T) {
@@ -95,16 +93,6 @@ func TestDump(t *testing.T) {
 		Run(g.SH("c", "echo", "hello")).
 		Run(g.Group("z").
 			Run(g.Retry(10).Run(g.SH("x", "echo", "sup")))))
-}
-
-func runComponent(t *testing.T, c gestalt.Component) {
-	runComponentWith(t, c, []string{})
-}
-
-func runComponentWith(t *testing.T, c gestalt.Component, args []string) {
-	if err := gestalt.RunWith(c, args); err != nil {
-		t.Errorf("run failed: %v", err)
-	}
 }
 
 func producer(t *testing.T) gestalt.Component {
@@ -141,6 +129,38 @@ func readFields(t *testing.T) gestalt.Action {
 
 		return result.Complete()
 	}
+}
+
+func runComponent(t *testing.T, c gestalt.Component) {
+	assertGestaltSuccess(t, c, []string{})
+}
+
+func assertGestaltSuccess(t *testing.T, c gestalt.Component, args []string) {
+	terminate := func(status int) {
+		if status != 0 {
+			t.Fatalf("gestalt exited with nonzero status (%v", status)
+		}
+	}
+	runner := gestalt.NewRunner().
+		WithComponent(c).
+		WithArgs(args).
+		WithTerminate(terminate)
+	runner.Run()
+}
+
+func assertGestaltFails(t *testing.T, c gestalt.Component, args []string) {
+	terminate := func(status int) {
+		if status == 0 {
+			t.Fail()
+		}
+	}
+
+	runner := gestalt.NewRunner().
+		WithComponent(c).
+		WithArgs(args).
+		WithTerminate(terminate)
+
+	runner.Run()
 }
 
 func TestMain(m *testing.M) {

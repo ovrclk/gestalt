@@ -4,17 +4,18 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt/vars"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
-func Run(c Component) error {
-	return RunWith(c, os.Args[1:])
+func Run(c Component) {
+	RunWith(c, os.Args[1:])
 }
 
-func RunWith(c Component, args []string) error {
-	return NewRunner().
+func RunWith(c Component, args []string) {
+	NewRunner().
 		WithArgs(args).
 		WithComponent(c).
 		Run()
@@ -23,16 +24,19 @@ func RunWith(c Component, args []string) error {
 type Runner interface {
 	WithArgs([]string) Runner
 	WithComponent(Component) Runner
-	Run() error
+	WithTerminate(func(status int)) Runner
+	Run()
 }
 
 type runner struct {
 	args []string
 	cmp  Component
+
+	terminate func(status int)
 }
 
 func NewRunner() Runner {
-	return &runner{}
+	return &runner{terminate: os.Exit}
 }
 
 func (r *runner) WithArgs(args []string) Runner {
@@ -45,21 +49,28 @@ func (r *runner) WithComponent(cmp Component) Runner {
 	return r
 }
 
-func (r *runner) Run() error {
-	if r.cmp == nil {
-		return fmt.Errorf("No component found")
-	}
+func (r *runner) WithTerminate(terminate func(int)) Runner {
+	r.terminate = terminate
+	return r
+}
 
-	opts := newOptions()
+func (r *runner) Run() {
+
+	opts := newOptions(r)
+
+	if r.cmp == nil {
+		opts.app.Fatalf("no component given")
+		return
+	}
 
 	switch kingpin.MustParse(opts.app.Parse(r.args)) {
 	case opts.cmdShow.FullCommand():
-		return r.doShow(opts)
+		r.doShow(opts)
 	case opts.cmdEval.FullCommand():
-		return r.doEval(opts)
+		r.doEval(opts)
+	case opts.cmdValidate.FullCommand():
+		r.doValidate(opts)
 	}
-
-	return fmt.Errorf("unknown command")
 }
 
 type options struct {
@@ -81,10 +92,10 @@ func (opts *options) getVars() vars.Vars {
 	return v
 }
 
-func newOptions() *options {
+func newOptions(r *runner) *options {
 	opts := &options{}
 
-	opts.app = kingpin.New("gestalt", "Run gestalt components")
+	opts.app = kingpin.New("gestalt", "Run gestalt components").Terminate(r.terminate)
 	opts.debug = opts.app.Flag("debug", "Display debug logging").Bool()
 
 	opts.vars = opts.app.Flag("set", "set variables").Short('s').StringMap()
@@ -96,32 +107,39 @@ func newOptions() *options {
 	return opts
 }
 
-func (r *runner) doEval(opts *options) error {
-	e := NewEvaluator()
-	e.Vars().Merge(opts.getVars())
+func (r *runner) doEval(opts *options) {
 
-	missing := ValidateWith(r.cmp, e.Vars())
-
-	if len(missing) > 0 {
-		return r.showUnresolvedVars(opts, missing)
+	logger := logrus.New()
+	if *opts.debug {
+		logger.Level = logrus.DebugLevel
 	}
 
-	return e.Evaluate(r.cmp).Wait().Err()
+	e := NewEvaluatorWithLogger(logger)
+
+	e.Vars().Merge(opts.getVars())
+
+	if err := r.showUnresolvedVars(opts, e.Vars()); err != nil {
+		opts.app.FatalIfError(err, "")
+	}
+
+	err := e.Evaluate(r.cmp).Wait().Err()
+
+	opts.app.FatalIfError(err, "error evaluating components")
 }
 
-func (r *runner) doShow(opts *options) error {
+func (r *runner) doShow(opts *options) {
 	Dump(r.cmp)
-	return nil
 }
 
-func (r *runner) doValidate(opts *options) error {
-
-	missing := ValidateWith(r.cmp, opts.getVars())
-
-	return r.showUnresolvedVars(opts, missing)
+func (r *runner) doValidate(opts *options) {
+	err := r.showUnresolvedVars(opts, opts.getVars())
+	opts.app.FatalIfError(err, "")
 }
 
-func (r *runner) showUnresolvedVars(opts *options, unresolved []Unresolved) error {
+func (r *runner) showUnresolvedVars(opts *options, vars vars.Vars) error {
+
+	unresolved := ValidateWith(r.cmp, vars)
+
 	if len(unresolved) == 0 {
 		return nil
 	}
