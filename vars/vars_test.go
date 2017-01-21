@@ -54,3 +54,25 @@ func TestMerge(t *testing.T) {
 		t.Errorf("merge result does not have exports (%v)", m3.Requires())
 	}
 }
+
+func TestExpand(t *testing.T) {
+	v1 := vars.FromMap(map[string]string{
+		"a": "foo",
+		"b": "bar",
+	})
+
+	cases := map[string]string{
+		"{{a}}":       "foo",
+		"{{z}}":       "{{z}}",
+		"abc":         "abc",
+		"{{":          "{{",
+		"{{ {{b}} }}": "{{ bar }}",
+	}
+
+	for tmpl, expected := range cases {
+		if result := vars.Expand(v1, tmpl); result != expected {
+			t.Errorf("%v != %v", result, expected)
+		}
+	}
+
+}
