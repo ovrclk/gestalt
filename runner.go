@@ -73,6 +73,14 @@ type options struct {
 	cmdValidate *kingpin.CmdClause
 }
 
+func (opts *options) getVars() vars.Vars {
+	v := vars.NewVars()
+	if opts.vars != nil {
+		v = v.Merge(vars.FromMap(*opts.vars))
+	}
+	return v
+}
+
 func newOptions() *options {
 	opts := &options{}
 
@@ -90,9 +98,12 @@ func newOptions() *options {
 
 func (r *runner) doEval(opts *options) error {
 	e := NewEvaluator()
+	e.Vars().Merge(opts.getVars())
 
-	if opts.vars != nil {
-		e.Vars().Merge(vars.FromMap(*opts.vars))
+	missing := ValidateWith(r.cmp, e.Vars())
+
+	if len(missing) > 0 {
+		return r.showUnresolvedVars(opts, missing)
 	}
 
 	return e.Evaluate(r.cmp).Wait().Err()
@@ -105,21 +116,19 @@ func (r *runner) doShow(opts *options) error {
 
 func (r *runner) doValidate(opts *options) error {
 
-	ivars := vars.NewVars()
+	missing := ValidateWith(r.cmp, opts.getVars())
 
-	if opts.vars != nil {
-		ivars.Merge(vars.FromMap(*opts.vars))
-	}
+	return r.showUnresolvedVars(opts, missing)
+}
 
-	missing := ValidateWith(r.cmp, ivars)
-
-	if len(missing) == 0 {
+func (r *runner) showUnresolvedVars(opts *options, unresolved []Unresolved) error {
+	if len(unresolved) == 0 {
 		return nil
 	}
 
-	for _, m := range missing {
+	for _, x := range unresolved {
 		opts.app.Errorf("Missing variables:\n")
-		opts.app.Errorf("%v.%v", m.Path, m.Name)
+		opts.app.Errorf("%v.%v", x.Path, x.Name)
 	}
 
 	return fmt.Errorf("missing variables")

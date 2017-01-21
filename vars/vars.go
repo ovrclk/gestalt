@@ -15,11 +15,11 @@ type varmap struct {
 	values map[string]string
 }
 
-func NewVars() *varmap {
+func NewVars() Vars {
 	return &varmap{make(map[string]string)}
 }
 
-func FromMap(values map[string]string) *varmap {
+func FromMap(values map[string]string) Vars {
 	return &varmap{values: values}
 }
 
@@ -52,9 +52,8 @@ func (v *varmap) Keys() []string {
 
 func (v *varmap) Clone() Vars {
 	clone := NewVars()
-
 	for k, v := range v.values {
-		clone.values[k] = v
+		clone.Put(k, v)
 	}
 	return clone
 }
