@@ -85,6 +85,28 @@ func TestCliVars(t *testing.T) {
 	assertGestaltSuccess(t, consumer(t), args)
 }
 
+func TextExpand(t *testing.T) {
+	producer := g.SH("producer", "echo", "{{host}}", "bar", "baz").
+		FN(g.P().Capture("a", "b", "c")).
+		WithMeta(g.M().Export("a", "b", "c").Require("host"))
+
+	suite := g.Suite("suite").
+		Run(producer).
+		Run(consumer(t)).
+		WithMeta(g.M().Require("host"))
+
+	{
+		args := []string{"-shost=foo"}
+		assertGestaltSuccess(t, suite, args)
+	}
+
+	{
+		args := []string{"-shost=bar"}
+		assertGestaltFails(t, suite, args)
+	}
+
+}
+
 func TestDump(t *testing.T) {
 	//t.SkipNow()
 	gestalt.Dump(g.

@@ -61,7 +61,15 @@ func (c *CC) FN(fn CmdFn) Cmd {
 }
 
 func (c *CC) Eval(e gestalt.Evaluator) result.Result {
-	cmd := exec.CommandContext(e.Context(), c.Path, c.Args...)
+
+	path := vars.Expand(e.Vars(), c.Path)
+	args := make([]string, len(c.Args))
+
+	for i, v := range c.Args {
+		args[i] = vars.Expand(e.Vars(), v)
+	}
+
+	cmd := exec.CommandContext(e.Context(), path, args...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -73,7 +81,8 @@ func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 		return result.Error(err)
 	}
 
-	e.Log().Debugf("running %v %v", cmd.Path, cmd.Args)
+	e.Log().Debugf("running %v %v", cmd.Path, strings.Join(cmd.Args, " "))
+
 	if err := cmd.Start(); err != nil {
 		e.Log().WithError(err).Errorf("error running %v", cmd.Path)
 		return result.Error(err)
