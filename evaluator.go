@@ -2,6 +2,7 @@ package gestalt
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt/result"
@@ -12,11 +13,16 @@ type Action func(Evaluator) result.Result
 
 type Evaluator interface {
 	Log() logrus.FieldLogger
+
 	Evaluate(Component) result.Result
 	Fork(Component) result.Result
 
 	Emit(string, string)
 	Vars() vars.Vars
+
+	LogStdout(string)
+	LogStderr(string)
+	LogMessage(string)
 
 	Context() context.Context
 	Stop()
@@ -123,6 +129,17 @@ func (e *evaluator) cloneWithPath(path string) *evaluator {
 		log:    e.log.WithField("path", path),
 		vars:   vars.NewVars(),
 	}
+}
+
+func (e *evaluator) LogStderr(buf string) {
+	e.Log().Error(strings.TrimRight(buf, "\n\r"))
+}
+
+func (e *evaluator) LogStdout(buf string) {
+	e.Log().Debug(strings.TrimRight(buf, "\n\r"))
+}
+
+func (e *evaluator) LogMessage(string) {
 }
 
 func (e *evaluator) tracePreEval(child *evaluator, node Component) {

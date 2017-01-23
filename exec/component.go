@@ -98,11 +98,11 @@ func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		logStream(stdout, e.Log().Debug, buf)
+		logStream(stdout, e.LogStdout, buf)
 	}()
 	go func() {
 		defer wg.Done()
-		logStream(stderr, e.Log().Error, nil)
+		logStream(stderr, e.LogStderr, nil)
 	}()
 	wg.Wait()
 
@@ -127,7 +127,7 @@ func (c *CC) copyStdout() bool {
 	return c.fn != nil
 }
 
-func logStream(reader io.ReadCloser, log func(fmt ...interface{}), b *bytes.Buffer) {
+func logStream(reader io.ReadCloser, log func(string), b *bytes.Buffer) {
 	buf := make([]byte, 80)
 	for {
 		n, err := reader.Read(buf)
@@ -141,7 +141,7 @@ func logStream(reader io.ReadCloser, log func(fmt ...interface{}), b *bytes.Buff
 		}
 
 		if n > 0 {
-			log(strings.TrimRight(string(buf[0:n]), "\n\r"))
+			log(string(buf[0:n]))
 		}
 	}
 }
