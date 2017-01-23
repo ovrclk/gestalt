@@ -48,12 +48,7 @@ func (v *validator) Push(c Component) {
 
 	path := pushPath(v.top.path, c)
 
-	var newtop *state
-	if c.IsPassThrough() {
-		newtop = &state{path, v.top.resolved.Clone()}
-	} else {
-		newtop = &state{path, mapset.NewSet()}
-	}
+	newtop := &state{path, v.top.resolved.Clone()}
 
 	for _, k := range c.Meta().Requires() {
 		if !v.top.resolved.Contains(k) {

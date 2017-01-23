@@ -51,4 +51,26 @@ func TestValidate(t *testing.T) {
 		t.Errorf("invalid missing vars: %#v", missing)
 	}
 
+	suite.WithMeta(vars.NewMeta().Require("y"))
+
+	input := vars.FromMap(map[string]string{"y": "z"})
+
+	if missing := gestalt.ValidateWith(suite, input); len(missing) > 0 {
+		t.Fail()
+	}
+
+	suite.Run(component.NewSuite("lower").
+		Run(noop("d").
+			WithMeta(vars.NewMeta().Require("y"))))
+
+	if missing := gestalt.ValidateWith(suite, input); len(missing) > 0 {
+		t.Fail()
+	}
+
+	if missing := gestalt.Validate(suite); len(missing) != 1 {
+		t.Errorf("invalid missing vars count: %#v", missing)
+	} else if missing[0].Path != "/top" || missing[0].Name != "y" {
+		t.Errorf("invalid missing vars: %#v", missing)
+	}
+
 }

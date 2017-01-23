@@ -10,6 +10,7 @@ import (
 func TestImportTo(t *testing.T) {
 	parent := vars.NewVars()
 	parent.Put("a", "foo")
+	parent.Put("b", "bar")
 
 	child := vars.NewVars()
 
@@ -18,7 +19,11 @@ func TestImportTo(t *testing.T) {
 	vars.ImportTo(m, parent, child)
 
 	if val := child.Get("a"); val != "foo" {
-		t.Errorf("key not imported into child")
+		t.Errorf("required key not imported into child")
+	}
+
+	if val := child.Get("b"); val != "bar" {
+		t.Errorf("unrequired key not imported into child")
 	}
 }
 
