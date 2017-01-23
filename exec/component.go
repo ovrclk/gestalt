@@ -81,7 +81,7 @@ func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 		return result.Error(err)
 	}
 
-	e.Log().Debugf("running %v %v", cmd.Path, strings.Join(cmd.Args, " "))
+	e.Log().Debugf("running %v %v", path, strings.Join(args, " "))
 
 	if err := cmd.Start(); err != nil {
 		e.Log().WithError(err).Errorf("error running %v", cmd.Path)
