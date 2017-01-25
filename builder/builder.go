@@ -41,6 +41,10 @@ func EXEC(name, cmd string, args ...string) exec.Cmd {
 	return exec.EXEC(name, cmd, args...)
 }
 
+func Columns(columns ...string) exec.ObjectPipe {
+	return exec.ParseColumns(columns...)
+}
+
 func P() exec.TextPipe {
 	return exec.P()
 }
