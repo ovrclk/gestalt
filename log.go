@@ -64,8 +64,8 @@ func (lb *logBuilder) WithLogOut(o io.Writer) *logBuilder {
 	return lb
 }
 
-func (lb *logBuilder) WithLevel(level logrus.Level) *logBuilder {
-	lb.log.Level = level
+func (lb *logBuilder) WithLevel(level string) *logBuilder {
+	lb.log.Level, _ = logrus.ParseLevel(level)
 	return lb
 }
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt/vars"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -74,9 +73,10 @@ func (r *runner) Run() {
 }
 
 type options struct {
-	app     *kingpin.Application
-	debug   *bool
-	logFile **os.File
+	app *kingpin.Application
+
+	logLevel *string
+	logFile  **os.File
 
 	vars *map[string]string
 
@@ -96,36 +96,39 @@ func (opts *options) getVars() vars.Vars {
 func newOptions(r *runner) *options {
 	opts := &options{}
 
-	opts.app = kingpin.New("gestalt", "Run gestalt components").Terminate(r.terminate)
+	opts.app = kingpin.
+		New("gestalt", "Run gestalt components").
+		Terminate(r.terminate)
 
-	opts.debug = opts.app.
-		Flag("debug", "Display debug logging").Bool()
+	opts.logLevel = opts.app.
+		Flag("log-level", "Log level").Short('l').
+		Default("panic").
+		Enum("panic", "fatal", "error", "warn", "info", "debug")
 
 	opts.logFile = opts.app.
-		Flag("log-file", "Write log to file").Short('l').
+		Flag("log-file", "Write log to file").
+		Default("/dev/stdout").
 		OpenFile(os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
 
-	opts.vars = opts.app.Flag("set", "set variables").Short('s').StringMap()
+	opts.vars = opts.app.
+		Flag("set", "set variables").Short('s').StringMap()
 
-	opts.cmdEval = opts.app.Command("eval", "run components").Default()
-	opts.cmdShow = opts.app.Command("show", "display component tree")
-	opts.cmdValidate = opts.app.Command("validate", "validate vars")
+	opts.cmdEval = opts.app.
+		Command("eval", "run components").Default()
+
+	opts.cmdShow = opts.app.
+		Command("show", "display component tree")
+	opts.cmdValidate = opts.app.
+		Command("validate", "validate vars")
 
 	return opts
 }
 
 func (r *runner) doEval(opts *options) {
 
-	lb := newLogBuilder()
-
-	if *opts.debug {
-		lb.WithLevel(logrus.DebugLevel)
-		if opts.logFile != nil {
-			lb.WithLogOut(*opts.logFile)
-		} else {
-			lb.WithLogOut(os.Stdout)
-		}
-	}
+	lb := newLogBuilder().
+		WithLevel(*opts.logLevel).
+		WithLogOut(*opts.logFile)
 
 	e := NewEvaluatorWithLogger(lb.Logger())
 
