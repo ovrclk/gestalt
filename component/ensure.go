@@ -74,22 +74,21 @@ func (c *EC) Children() []gestalt.Component {
 }
 
 func (c *EC) Eval(e gestalt.Evaluator) result.Result {
-	rset := result.NewSet()
-
 	if c.pre != nil {
-		rset.Add(e.Evaluate(c.pre))
-		if rset.IsError() {
-			return rset.Result()
-		}
+		e.Evaluate(c.pre)
+	}
+
+	if e.HasError() {
+		return result.Complete()
 	}
 
 	if c.child != nil {
-		rset.Add(e.Evaluate(c.child))
+		e.Evaluate(c.child)
 	}
 
 	if c.post != nil {
-		rset.Add(e.Evaluate(c.post))
+		e.Evaluate(c.post)
 	}
 
-	return rset.Result()
+	return result.Complete()
 }

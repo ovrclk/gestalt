@@ -1,5 +1,5 @@
 test:
-	go test -v -race ./test ./vars
+	go test -v -race ./...
 
 example:
 	(cd example && make)

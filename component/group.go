@@ -59,20 +59,18 @@ func (c *GC) Run(child gestalt.Component) Group {
 
 func (c *GC) Eval(e gestalt.Evaluator) result.Result {
 
-	rset := result.NewSet()
-
 	// evaluate children up to an error
 	for _, child := range c.Children() {
-		rset.Add(e.Evaluate(child))
-		if rset.IsError() {
+		e.Evaluate(child)
+		if e.HasError() {
 			break
 		}
 	}
 
-	if rset.IsError() || c.terminal {
+	if e.HasError() || c.terminal {
 		e.Stop()
-		return rset.Wait()
+		e.Wait()
 	}
 
-	return rset.Result()
+	return result.Complete()
 }

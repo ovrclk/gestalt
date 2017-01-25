@@ -138,9 +138,25 @@ func (r *runner) doEval(opts *options) {
 		opts.app.FatalIfError(err, "")
 	}
 
-	err := e.Evaluate(r.cmp).Wait().Err()
+	e.Evaluate(r.cmp)
+	e.Wait()
 
-	opts.app.FatalIfError(err, "error evaluating components")
+	if !e.HasError() {
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "\n\nEvaluation of %v failed:\n\n", r.cmp.Name())
+
+	for _, err := range e.Errors() {
+		if err, ok := err.(Error); ok {
+
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			fmt.Fprintf(os.Stderr, "%v\n", err.Detail())
+		} else {
+			fmt.Fprintf(os.Stderr, "Unknown Error:\n%v\n", err)
+		}
+	}
+	opts.app.Fatalf("eval failed")
 }
 
 func (r *runner) doShow(opts *options) {

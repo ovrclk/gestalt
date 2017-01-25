@@ -42,11 +42,13 @@ func NewRetry(tries int, delay time.Duration) *WC {
 
 				e.Message("[attempt %v/%v]", i+1, tries)
 
-				res := e.Evaluate(c.Child())
-				switch res.State() {
-				case result.StateComplete, result.StateRunning:
-					return res
+				e.Evaluate(c.Child())
+
+				if !e.HasError() {
+					return result.Complete()
 				}
+
+				e.ClearError()
 			}
 			return result.Error(fmt.Errorf("too many retries"))
 		})

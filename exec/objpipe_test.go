@@ -138,3 +138,21 @@ func (e *fakeEvaluator) Context() context.Context {
 func (e *fakeEvaluator) Stop() {
 	e.t.Fatal("Stop() called")
 }
+
+func (e *fakeEvaluator) ClearError() {
+	e.t.Fatal("ClearError() called")
+}
+
+func (e *fakeEvaluator) HasError() bool {
+	e.t.Fatal("HasError() called")
+	return false
+}
+
+func (e *fakeEvaluator) Errors() []error {
+	e.t.Fatal("Errors() called")
+	return nil
+}
+
+func (e *fakeEvaluator) Wait() {
+	e.t.Fatal("Wait() called")
+}

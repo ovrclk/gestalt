@@ -2,6 +2,7 @@ package gestalt
 
 import (
 	"context"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt/result"
@@ -22,7 +23,13 @@ type Evaluator interface {
 	Message(string, ...interface{})
 
 	Context() context.Context
+
 	Stop()
+	Wait()
+
+	HasError() bool
+	ClearError()
+	Errors() []error
 }
 
 type evaluator struct {
@@ -32,6 +39,11 @@ type evaluator struct {
 	logger Logger
 
 	vars vars.Vars
+
+	errors []error
+
+	wg       sync.WaitGroup
+	children []*evaluator
 }
 
 func NewEvaluator() *evaluator {
@@ -73,6 +85,22 @@ func (e *evaluator) Stop() {
 	e.cancel()
 }
 
+func (e *evaluator) Wait() {
+	e.wg.Wait()
+}
+
+func (e *evaluator) HasError() bool {
+	return len(e.errors) > 0
+}
+
+func (e *evaluator) ClearError() {
+	e.errors = make([]error, 0)
+}
+
+func (e *evaluator) Errors() []error {
+	return e.errors
+}
+
 func (e *evaluator) Evaluate(node Component) result.Result {
 	child := e.cloneFor(node)
 
@@ -83,6 +111,8 @@ func (e *evaluator) Evaluate(node Component) result.Result {
 	result := child.doEvaluate(node)
 
 	vars.ExportTo(m, child.vars, e.vars)
+
+	e.errors = append(e.errors, child.errors...)
 
 	e.tracePostEval(child, node)
 
@@ -96,7 +126,7 @@ func (e *evaluator) doEvaluate(node Component) result.Result {
 	result := node.Eval(e)
 
 	if result.IsError() {
-		e.Log().WithError(result.Err()).Error("eval failed")
+		e.addError(result.Err())
 	}
 
 	e.logger.Stop(result.Err())
@@ -104,15 +134,19 @@ func (e *evaluator) doEvaluate(node Component) result.Result {
 	return result
 }
 
+func (e *evaluator) addError(err error) {
+	e.Log().WithError(err).Error("eval failed")
+	e.errors = append(e.errors, NewError(e.path, err))
+}
+
 func (e *evaluator) Fork(node Component) result.Result {
-	ch := make(chan result.Result)
-	go func(e Evaluator) {
-		defer close(ch)
-		ch <- e.Evaluate(node).Wait()
+	e.wg.Add(1)
+	go func(child Evaluator) {
+		defer e.wg.Done()
+		child.Evaluate(node)
+		child.Wait()
 	}(e.forkFor(node))
-	return result.Running(func() result.Result {
-		return <-ch
-	})
+	return result.Complete()
 }
 
 func (e *evaluator) cloneFor(node Component) *evaluator {

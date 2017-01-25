@@ -3,6 +3,7 @@ package exec
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"os/exec"
 	"strings"
@@ -71,12 +72,12 @@ func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 
 	cmd := exec.CommandContext(e.Context(), path, args...)
 
-	stdout, err := cmd.StdoutPipe()
+	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return result.Error(err)
 	}
 
-	stderr, err := cmd.StderrPipe()
+	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
 		return result.Error(err)
 	}
@@ -84,39 +85,35 @@ func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 	e.Message("running %v %v", path, strings.Join(args, " "))
 
 	if err := cmd.Start(); err != nil {
-		e.Log().WithError(err).Errorf("error running %v", cmd.Path)
-		return result.Error(err)
+		return result.Error(fmt.Errorf("can't execute %v: %v", path, err))
 	}
 
-	var buf *bytes.Buffer
-	if c.copyStdout() {
-		buf = new(bytes.Buffer)
-	}
+	stdoutBuf := new(bytes.Buffer)
+	stderrBuf := new(bytes.Buffer)
 
 	var wg sync.WaitGroup
-
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		logStream(stdout, e.Log().Debug, buf)
+		logStream(stdoutPipe, e.Log().Debug, stdoutBuf)
 	}()
 	go func() {
 		defer wg.Done()
-		logStream(stderr, e.Log().Error, nil)
+		logStream(stderrPipe, e.Log().Error, stderrBuf)
 	}()
 	wg.Wait()
 
 	if err := cmd.Wait(); err != nil {
 		if !expectedExecError(err, e) {
-			e.Log().WithError(err).Error("command failed")
-			return result.Error(err)
+			return newError(err, path, args, stdoutBuf, stderrBuf)
 		}
 	}
 
 	if c.copyStdout() {
+		buf := bytes.NewBuffer(stdoutBuf.Bytes())
 		err := c.fn(bufio.NewReader(buf), e)
 		if err != nil {
-			return result.Error(err)
+			return newError(err, path, args, stdoutBuf, stderrBuf)
 		}
 		return result.Complete()
 	}
@@ -156,4 +153,8 @@ func expectedExecError(err error, e gestalt.Evaluator) bool {
 		}
 	}
 	return false
+}
+
+func newError(err error, path string, args []string, stdout *bytes.Buffer, stderr *bytes.Buffer) result.Result {
+	return result.Error(&Error{err.Error(), path, args, stdout.String(), stderr.String()})
 }
