@@ -81,7 +81,7 @@ func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 		return result.Error(err)
 	}
 
-	e.Log().Debugf("running %v %v", path, strings.Join(args, " "))
+	e.Message("running %v %v", path, strings.Join(args, " "))
 
 	if err := cmd.Start(); err != nil {
 		e.Log().WithError(err).Errorf("error running %v", cmd.Path)
@@ -98,11 +98,11 @@ func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		logStream(stdout, e.LogStdout, buf)
+		logStream(stdout, e.Log().Debug, buf)
 	}()
 	go func() {
 		defer wg.Done()
-		logStream(stderr, e.LogStderr, nil)
+		logStream(stderr, e.Log().Error, nil)
 	}()
 	wg.Wait()
 
@@ -127,7 +127,7 @@ func (c *CC) copyStdout() bool {
 	return c.fn != nil
 }
 
-func logStream(reader io.ReadCloser, log func(string), b *bytes.Buffer) {
+func logStream(reader io.ReadCloser, log func(...interface{}), b *bytes.Buffer) {
 	buf := make([]byte, 80)
 	for {
 		n, err := reader.Read(buf)

@@ -74,8 +74,9 @@ func (r *runner) Run() {
 }
 
 type options struct {
-	app   *kingpin.Application
-	debug *bool
+	app     *kingpin.Application
+	debug   *bool
+	logFile **os.File
 
 	vars *map[string]string
 
@@ -96,7 +97,13 @@ func newOptions(r *runner) *options {
 	opts := &options{}
 
 	opts.app = kingpin.New("gestalt", "Run gestalt components").Terminate(r.terminate)
-	opts.debug = opts.app.Flag("debug", "Display debug logging").Bool()
+
+	opts.debug = opts.app.
+		Flag("debug", "Display debug logging").Bool()
+
+	opts.logFile = opts.app.
+		Flag("log-file", "Write log to file").Short('l').
+		OpenFile(os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
 
 	opts.vars = opts.app.Flag("set", "set variables").Short('s').StringMap()
 
@@ -109,12 +116,18 @@ func newOptions(r *runner) *options {
 
 func (r *runner) doEval(opts *options) {
 
-	logger := logrus.New()
+	lb := newLogBuilder()
+
 	if *opts.debug {
-		logger.Level = logrus.DebugLevel
+		lb.WithLevel(logrus.DebugLevel)
+		if opts.logFile != nil {
+			lb.WithLogOut(*opts.logFile)
+		} else {
+			lb.WithLogOut(os.Stdout)
+		}
 	}
 
-	e := NewEvaluatorWithLogger(logger)
+	e := NewEvaluatorWithLogger(lb.Logger())
 
 	e.Vars().Merge(opts.getVars())
 

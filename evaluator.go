@@ -2,7 +2,6 @@ package gestalt
 
 import (
 	"context"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt/result"
@@ -20,9 +19,7 @@ type Evaluator interface {
 	Emit(string, string)
 	Vars() vars.Vars
 
-	LogStdout(string)
-	LogStderr(string)
-	LogMessage(string)
+	Message(string, ...interface{})
 
 	Context() context.Context
 	Stop()
@@ -32,28 +29,32 @@ type evaluator struct {
 	path   string
 	ctx    context.Context
 	cancel context.CancelFunc
-	log    logrus.FieldLogger
+	logger Logger
 
 	vars vars.Vars
 }
 
 func NewEvaluator() *evaluator {
-	return NewEvaluatorWithLogger(logrus.StandardLogger())
+	return NewEvaluatorWithLogger(newLogBuilder().Logger())
 }
 
-func NewEvaluatorWithLogger(logger *logrus.Logger) *evaluator {
+func NewEvaluatorWithLogger(logger Logger) *evaluator {
 	ctx, cancel := context.WithCancel(context.TODO())
 	return &evaluator{
 		path:   "",
 		ctx:    ctx,
 		cancel: cancel,
-		log:    logger,
+		logger: logger,
 		vars:   vars.NewVars(),
 	}
 }
 
 func (e *evaluator) Log() logrus.FieldLogger {
-	return e.log
+	return e.logger.Log()
+}
+
+func (e *evaluator) Message(msg string, args ...interface{}) {
+	e.logger.Message(msg, args...)
 }
 
 func (e *evaluator) Context() context.Context {
@@ -82,13 +83,15 @@ func (e *evaluator) Evaluate(node Component) result.Result {
 	result := child.doEvaluate(node)
 
 	vars.ExportTo(m, child.vars, e.vars)
+
 	e.tracePostEval(child, node)
 
 	return result
 }
 
 func (e *evaluator) doEvaluate(node Component) result.Result {
-	e.Log().Debug("start")
+
+	e.logger.Start()
 
 	result := node.Eval(e)
 
@@ -96,7 +99,7 @@ func (e *evaluator) doEvaluate(node Component) result.Result {
 		e.Log().WithError(result.Err()).Error("eval failed")
 	}
 
-	e.Log().Debugf("end -> %v", result)
+	e.logger.Stop(result.Err())
 
 	return result
 }
@@ -113,33 +116,23 @@ func (e *evaluator) Fork(node Component) result.Result {
 }
 
 func (e *evaluator) cloneFor(node Component) *evaluator {
-	return e.cloneWithPath(pushPath(e.path, node))
+	return e.cloneWithPath(pushPath(e.path, node), node)
 }
 
 func (e *evaluator) forkFor(node Component) *evaluator {
-	return e.cloneWithPath(e.path)
+	return e.cloneWithPath(e.path, node)
 }
 
-func (e *evaluator) cloneWithPath(path string) *evaluator {
+func (e *evaluator) cloneWithPath(path string, node Component) *evaluator {
 	ctx, cancel := context.WithCancel(e.ctx)
+
 	return &evaluator{
 		path:   path,
 		ctx:    ctx,
 		cancel: cancel,
-		log:    e.log.WithField("path", path),
+		logger: e.logger.CloneFor(path),
 		vars:   vars.NewVars(),
 	}
-}
-
-func (e *evaluator) LogStderr(buf string) {
-	e.Log().Error(strings.TrimRight(buf, "\n\r"))
-}
-
-func (e *evaluator) LogStdout(buf string) {
-	e.Log().Debug(strings.TrimRight(buf, "\n\r"))
-}
-
-func (e *evaluator) LogMessage(string) {
 }
 
 func (e *evaluator) tracePreEval(child *evaluator, node Component) {
