@@ -39,6 +39,9 @@ func NewRetry(tries int, delay time.Duration) *WC {
 				if i > 0 {
 					time.Sleep(delay)
 				}
+
+				e.Message("[attempt %v/%v]", i+1, tries)
+
 				res := e.Evaluate(c.Child())
 				switch res.State() {
 				case result.StateComplete, result.StateRunning:
@@ -64,7 +67,7 @@ func (c *WC) IsPassThrough() bool {
 }
 
 func (c *WC) Name() string {
-	return c.cmp.Name()
+	return fmt.Sprintf("%v.%v", c.Child().Name(), c.cmp.Name())
 }
 
 func (c *WC) Meta() vars.Meta {

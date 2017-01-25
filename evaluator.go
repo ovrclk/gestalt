@@ -130,7 +130,7 @@ func (e *evaluator) cloneWithPath(path string, node Component) *evaluator {
 		path:   path,
 		ctx:    ctx,
 		cancel: cancel,
-		logger: e.logger.CloneFor(path),
+		logger: e.logger.CloneFor(adornPath(path, node)),
 		vars:   vars.NewVars(),
 	}
 }

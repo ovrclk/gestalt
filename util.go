@@ -9,3 +9,10 @@ func pushPath(path string, c Component) string {
 		return fmt.Sprintf("%v/%v", path, c.Name())
 	}
 }
+
+func adornPath(path string, node Component) string {
+	if node.IsPassThrough() {
+		path += "/" + node.Name()
+	}
+	return path
+}
