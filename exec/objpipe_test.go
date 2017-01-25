@@ -74,6 +74,28 @@ func TestEnsureCount(t *testing.T) {
 			t.Fatal("Expected error but non received")
 		}
 	}
+}
+
+func TestExpand(t *testing.T) {
+	e := newEvaluator(t)
+
+	e.vars.Put("some-value", "baz")
+
+	b := bytes.NewBufferString("foo bar\nbar baz\nxyz abc")
+
+	p := exec.ParseColumns("a", "b")
+	p.GrepField("b", "{{some-value}}")
+	p.EnsureCount(1)
+
+	err := p.CaptureAll()(bufio.NewReader(b), e)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if x := e.vars.Get("b"); x != "baz" {
+		t.Fatalf("invalid export: field b of %v != %v", e.vars, "baz")
+	}
 
 }
 
@@ -104,8 +126,7 @@ func (e *fakeEvaluator) Emit(k string, v string) {
 	e.vars.Put(k, v)
 }
 func (e *fakeEvaluator) Vars() vars.Vars {
-	e.t.Fatal("Vars() called")
-	return nil
+	return e.vars
 }
 func (e *fakeEvaluator) Message(string, ...interface{}) {
 	e.t.Fatal("Message() called")

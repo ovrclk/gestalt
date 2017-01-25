@@ -5,6 +5,14 @@ import (
 	"strings"
 )
 
+func ExpandAll(v Vars, templates []string) []string {
+	results := make([]string, len(templates))
+	for i, template := range templates {
+		results[i] = Expand(v, template)
+	}
+	return results
+}
+
 func Expand(v Vars, current string) string {
 	// XXX: hack
 

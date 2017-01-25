@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ovrclk/gestalt"
+	"github.com/ovrclk/gestalt/vars"
 )
 
 type ObjectPipe interface {
@@ -87,7 +88,8 @@ func (p *objpipe) EnsureWith(fn PipeObjEnsureFn) ObjectPipe {
 func (p *objpipe) GrepField(key string, value string) ObjectPipe {
 	return p.GrepWith(func(obj PipeObject, e gestalt.Evaluator) bool {
 		if v, ok := obj[key]; ok {
-			return v == value
+			expanded := vars.Expand(e.Vars(), value)
+			return v == expanded
 		}
 		return false
 	})
@@ -137,7 +139,6 @@ func (p *objpipe) Then(fn PipeObjFn) *objpipe {
 func (p *objpipe) finally(fn func(objs []PipeObject, e gestalt.Evaluator) error) CmdFn {
 	return func(r *bufio.Reader, e gestalt.Evaluator) error {
 		objs, err := p.process(r, e)
-		fmt.Println(objs)
 		if err != nil {
 			return err
 		}
