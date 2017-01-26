@@ -13,8 +13,14 @@ import (
 
 type Action func(Evaluator) result.Result
 
+type Handler interface {
+	Push(Evaluator, Component)
+	Pop(Evaluator, Component)
+}
+
 type Evaluator interface {
 	Log() logrus.FieldLogger
+	Path() string
 
 	Evaluate(Component) result.Result
 	Fork(Component) result.Result
@@ -35,12 +41,10 @@ type Evaluator interface {
 }
 
 type evaluator struct {
-	path   string
-	ctx    context.Context
-	cancel context.CancelFunc
-	logger Logger
-
-	vars vars.Vars
+	pathHandler *pathHandler
+	logHandler  *logHandler
+	varHandler  *varHandler
+	ctxHandler  *ctxHandler
 
 	errors []error
 
@@ -54,39 +58,41 @@ func NewEvaluator() *evaluator {
 }
 
 func NewEvaluatorWithLogger(logger Logger) *evaluator {
-	ctx, cancel := context.WithCancel(context.TODO())
 	return &evaluator{
-		path:       "",
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     logger,
-		vars:       vars.NewVars(),
-		pauseOnErr: false,
+		pathHandler: newPathHandler(),
+		logHandler:  newLogHandler(logger),
+		varHandler:  newVarHandler(),
+		ctxHandler:  newCtxHandler(),
+		pauseOnErr:  false,
 	}
 }
 
 func (e *evaluator) Log() logrus.FieldLogger {
-	return e.logger.Log()
+	return e.logHandler.Current().Log()
+}
+
+func (e *evaluator) Path() string {
+	return e.pathHandler.Current()
 }
 
 func (e *evaluator) Message(msg string, args ...interface{}) {
-	e.logger.Message(msg, args...)
+	e.logHandler.Current().Message(msg, args...)
 }
 
 func (e *evaluator) Context() context.Context {
-	return e.ctx
+	return e.ctxHandler.Current()
 }
 
 func (e *evaluator) Emit(key string, value string) {
-	e.vars.Put(key, value)
+	e.varHandler.Current().Put(key, value)
 }
 
 func (e *evaluator) Vars() vars.Vars {
-	return e.vars
+	return e.varHandler.Current()
 }
 
 func (e *evaluator) Stop() {
-	e.cancel()
+	e.ctxHandler.Cancel()
 }
 
 func (e *evaluator) Wait() {
@@ -106,26 +112,35 @@ func (e *evaluator) Errors() []error {
 }
 
 func (e *evaluator) Evaluate(node Component) result.Result {
-	child := e.cloneFor(node)
 
-	m := node.Meta()
-	vars.ImportTo(m, e.vars, child.vars)
-	e.tracePreEval(child, node)
+	e.push(node)
 
-	result := child.doEvaluate(node)
+	result := e.doEvaluate(node)
 
-	vars.ExportTo(m, child.vars, e.vars)
+	if result.IsError() {
+		e.addError(result.Err())
+	}
 
-	e.errors = append(e.errors, child.errors...)
-
-	e.tracePostEval(child, node)
+	e.pop(node)
 
 	return result
 }
 
-func (e *evaluator) doEvaluate(node Component) result.Result {
+func (e *evaluator) push(node Component) {
+	e.pathHandler.Push(e, node)
+	e.logHandler.Push(e, node)
+	e.ctxHandler.Push(e, node)
+	e.varHandler.Push(e, node)
+}
 
-	e.logger.Start()
+func (e *evaluator) pop(node Component) {
+	e.varHandler.Pop(e, node)
+	e.logHandler.Pop(e, node)
+	e.ctxHandler.Pop(e, node)
+	e.pathHandler.Pop(e, node)
+}
+
+func (e *evaluator) doEvaluate(node Component) result.Result {
 
 	var result result.Result
 
@@ -145,18 +160,12 @@ func (e *evaluator) doEvaluate(node Component) result.Result {
 		}
 	}
 
-	if result.IsError() {
-		e.addError(result.Err())
-	}
-
-	e.logger.Stop(result.Err())
-
 	return result
 }
 
 func (e *evaluator) addError(err error) {
 	e.Log().WithError(err).Error("eval failed")
-	e.errors = append(e.errors, NewError(e.path, err))
+	e.errors = append(e.errors, NewError(e.Path(), err))
 }
 
 func (e *evaluator) Fork(node Component) result.Result {
@@ -169,31 +178,18 @@ func (e *evaluator) Fork(node Component) result.Result {
 	return result.Complete()
 }
 
-func (e *evaluator) cloneFor(node Component) *evaluator {
-	return e.cloneWithPath(pushPath(e.path, node), node)
-}
-
 func (e *evaluator) forkFor(node Component) *evaluator {
-	child := e.cloneWithPath(e.path, node)
-	child.pauseOnErr = false
-	return child
-}
-
-func (e *evaluator) cloneWithPath(path string, node Component) *evaluator {
-	ctx, cancel := context.WithCancel(e.ctx)
-
 	return &evaluator{
-		path:       path,
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     e.logger.CloneFor(adornPath(path, node)),
-		vars:       vars.NewVars(),
-		pauseOnErr: e.pauseOnErr,
+		pathHandler: e.pathHandler.Clone(),
+		logHandler:  e.logHandler.Clone(),
+		varHandler:  e.varHandler.Clone(),
+		ctxHandler:  e.ctxHandler.Clone(),
+		pauseOnErr:  false,
 	}
 }
 
 func (e *evaluator) doPause(err error) bool {
-	fmt.Fprintf(os.Stderr, "Error during %v\n", e.path)
+	fmt.Fprintf(os.Stderr, "Error during %v\n", e.Path())
 	fmt.Fprintf(os.Stderr, "%v\n", err)
 	if err, ok := err.(ErrorWithDetail); ok {
 		fmt.Fprintf(os.Stderr, "%v\n", err.Detail())
@@ -216,12 +212,4 @@ func (e *evaluator) doPause(err error) bool {
 		return false
 	}
 	return true
-}
-
-func (e *evaluator) tracePreEval(child *evaluator, node Component) {
-	//e.Log().Debugf("pre-eval: parent.vars: %v child.vars: %v meta: %v", e.vars, child.vars, node)
-}
-
-func (e *evaluator) tracePostEval(child *evaluator, node Component) {
-	//e.Log().Debugf("post-eval: parent.vars: %v child.vars: %v meta: %v", e.vars, child.vars, node)
 }

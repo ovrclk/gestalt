@@ -156,3 +156,8 @@ func (e *fakeEvaluator) Errors() []error {
 func (e *fakeEvaluator) Wait() {
 	e.t.Fatal("Wait() called")
 }
+
+func (e *fakeEvaluator) Path() string {
+	e.t.Fatal("Wait() called")
+	return ""
+}

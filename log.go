@@ -11,6 +11,7 @@ import (
 type Logger interface {
 	Log() logrus.FieldLogger
 	CloneFor(string) Logger
+	Clone() Logger
 
 	Start()
 	Message(string, ...interface{})
@@ -45,6 +46,10 @@ func (l *logger) Stop(err error) {
 
 func (l *logger) CloneFor(path string) Logger {
 	return &logger{path, l.log.WithField("path", path), l.out}
+}
+
+func (l *logger) Clone() Logger {
+	return &logger{l.path, l.log, l.out}
 }
 
 type logBuilder struct {
