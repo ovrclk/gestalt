@@ -2,6 +2,8 @@ package gestalt
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -42,8 +44,9 @@ type evaluator struct {
 
 	errors []error
 
-	wg       sync.WaitGroup
-	children []*evaluator
+	wg sync.WaitGroup
+
+	pauseOnErr bool
 }
 
 func NewEvaluator() *evaluator {
@@ -53,11 +56,12 @@ func NewEvaluator() *evaluator {
 func NewEvaluatorWithLogger(logger Logger) *evaluator {
 	ctx, cancel := context.WithCancel(context.TODO())
 	return &evaluator{
-		path:   "",
-		ctx:    ctx,
-		cancel: cancel,
-		logger: logger,
-		vars:   vars.NewVars(),
+		path:       "",
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     logger,
+		vars:       vars.NewVars(),
+		pauseOnErr: false,
 	}
 }
 
@@ -123,7 +127,23 @@ func (e *evaluator) doEvaluate(node Component) result.Result {
 
 	e.logger.Start()
 
-	result := node.Eval(e)
+	var result result.Result
+
+	for {
+		result = node.Eval(e)
+
+		if !result.IsError() {
+			break
+		}
+
+		if !e.pauseOnErr {
+			break
+		}
+
+		if e.doPause(result.Err()) {
+			break
+		}
+	}
 
 	if result.IsError() {
 		e.addError(result.Err())
@@ -154,19 +174,48 @@ func (e *evaluator) cloneFor(node Component) *evaluator {
 }
 
 func (e *evaluator) forkFor(node Component) *evaluator {
-	return e.cloneWithPath(e.path, node)
+	child := e.cloneWithPath(e.path, node)
+	child.pauseOnErr = false
+	return child
 }
 
 func (e *evaluator) cloneWithPath(path string, node Component) *evaluator {
 	ctx, cancel := context.WithCancel(e.ctx)
 
 	return &evaluator{
-		path:   path,
-		ctx:    ctx,
-		cancel: cancel,
-		logger: e.logger.CloneFor(adornPath(path, node)),
-		vars:   vars.NewVars(),
+		path:       path,
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     e.logger.CloneFor(adornPath(path, node)),
+		vars:       vars.NewVars(),
+		pauseOnErr: e.pauseOnErr,
 	}
+}
+
+func (e *evaluator) doPause(err error) bool {
+	fmt.Fprintf(os.Stderr, "Error during %v\n", e.path)
+	fmt.Fprintf(os.Stderr, "%v\n", err)
+	if err, ok := err.(ErrorWithDetail); ok {
+		fmt.Fprintf(os.Stderr, "%v\n", err.Detail())
+	}
+
+	fmt.Fprintf(os.Stderr, "Current Vars:\n")
+	for _, k := range e.Vars().Keys() {
+		fmt.Fprintf(os.Stderr, "%v=%v\n", k, e.Vars().Get(k))
+	}
+
+	fmt.Fprintf(os.Stderr, "Retry? [y/n]:")
+
+	bytes := make([]byte, 200)
+	n, err := os.Stdin.Read(bytes)
+	if err != nil {
+		return true
+	}
+
+	if n > 0 && bytes[0] == 'y' {
+		return false
+	}
+	return true
 }
 
 func (e *evaluator) tracePreEval(child *evaluator, node Component) {

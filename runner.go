@@ -80,8 +80,11 @@ type options struct {
 
 	vars *map[string]string
 
-	cmdShow     *kingpin.CmdClause
-	cmdEval     *kingpin.CmdClause
+	cmdShow *kingpin.CmdClause
+
+	cmdEval      *kingpin.CmdClause
+	pauseOnError *bool
+
 	cmdValidate *kingpin.CmdClause
 }
 
@@ -116,8 +119,14 @@ func newOptions(r *runner) *options {
 	opts.cmdEval = opts.app.
 		Command("eval", "run components").Default()
 
+	opts.pauseOnError = opts.cmdEval.
+		Flag("pause-on-error", "Pause on error").
+		Short('P').
+		Bool()
+
 	opts.cmdShow = opts.app.
 		Command("show", "display component tree")
+
 	opts.cmdValidate = opts.app.
 		Command("validate", "validate vars")
 
@@ -137,6 +146,8 @@ func (r *runner) doEval(opts *options) {
 	if err := r.showUnresolvedVars(opts, e.Vars()); err != nil {
 		opts.app.FatalIfError(err, "")
 	}
+
+	e.pauseOnErr = *opts.pauseOnError
 
 	e.Evaluate(r.cmp)
 	e.Wait()
