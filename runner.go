@@ -84,6 +84,7 @@ type options struct {
 
 	cmdEval      *kingpin.CmdClause
 	pauseOnError *bool
+	trace        *bool
 
 	cmdValidate *kingpin.CmdClause
 }
@@ -124,6 +125,10 @@ func newOptions(r *runner) *options {
 		Short('P').
 		Bool()
 
+	opts.trace = opts.cmdEval.
+		Flag("trace", "Trace execution").
+		Bool()
+
 	opts.cmdShow = opts.app.
 		Command("show", "display component tree")
 
@@ -139,7 +144,13 @@ func (r *runner) doEval(opts *options) {
 		WithLevel(*opts.logLevel).
 		WithLogOut(*opts.logFile)
 
-	e := NewEvaluatorWithLogger(lb.Logger())
+	visitors := []Visitor{}
+
+	if *opts.trace {
+		visitors = append(visitors, newTraceVisitor(os.Stdout))
+	}
+
+	e := NewEvaluatorWithLogger(lb.Logger(), visitors...)
 
 	e.Vars().Merge(opts.getVars())
 

@@ -2,6 +2,9 @@ package gestalt
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"sync"
 
 	"github.com/ovrclk/gestalt/vars"
 )
@@ -198,17 +201,79 @@ func (h *errVisitor) Add(err error) {
 	h.stack[len(h.stack)-1] = append(h.stack[len(h.stack)-1], err)
 }
 
+type waitState struct {
+	wg       *sync.WaitGroup
+	children []*sync.WaitGroup
+}
+
+type waitVisitor struct {
+	stack []*waitState
+}
+
+func newWaitVisitor() *waitVisitor {
+	return &waitVisitor{[]*waitState{&waitState{}}}
+}
+
+func (h *waitVisitor) Push(_ Traverser, _ Component) {
+	h.stack = append(h.stack, &waitState{})
+}
+
+func (h *waitVisitor) Pop(_ Traverser, _ Component) {
+	top := h.stack[len(h.stack)-1]
+	next := h.stack[len(h.stack)-2]
+
+	if top.wg != nil {
+		next.children = append(next.children, top.wg)
+	}
+	next.children = append(next.children, top.children...)
+
+	h.stack = h.stack[0 : len(h.stack)-1]
+}
+
+func (h *waitVisitor) Clone() *waitVisitor {
+	return newWaitVisitor()
+}
+
+func (h *waitVisitor) Current() *sync.WaitGroup {
+	top := h.stack[len(h.stack)-1]
+	if top.wg == nil {
+		top.wg = new(sync.WaitGroup)
+	}
+	return top.wg
+}
+
+func (h *waitVisitor) Wait() {
+	top := h.stack[len(h.stack)-1]
+	if top.wg != nil {
+		top.wg.Wait()
+	}
+	for _, child := range top.children {
+		child.Wait()
+	}
+}
+
 type traceVisitor struct {
+	out io.Writer
 }
 
-func newTraceVisitor() *traceVisitor {
-	return &traceVisitor{}
+func newTraceVisitor(out io.Writer) *traceVisitor {
+	return &traceVisitor{out}
 }
 
-func (h *traceVisitor) Push(e Traverser, node Component) {
+func (h *traceVisitor) Push(t Traverser, node Component) {
+	fmt.Fprintf(h.out, "TRACE ENTER [%v] [%v]\n", t.Path(), node.Name())
+	if e, ok := t.(Evaluator); ok {
+		fmt.Fprintf(h.out, "ERRORS: %v\n", e.Errors())
+		fmt.Fprintf(h.out, "VARS: %v\n", e.Vars())
+	}
 }
 
-func (h *traceVisitor) Pop(e Traverser, node Component) {
+func (h *traceVisitor) Pop(t Traverser, node Component) {
+	fmt.Fprintf(h.out, "TRACE LEAVE [%v] [%v]\n", t.Path(), node.Name())
+	if e, ok := t.(Evaluator); ok {
+		fmt.Fprintf(h.out, "ERRORS: %v\n", e.Errors())
+		fmt.Fprintf(h.out, "VARS: %v\n", e.Vars())
+	}
 }
 
 func (h *traceVisitor) Clone() *traceVisitor {

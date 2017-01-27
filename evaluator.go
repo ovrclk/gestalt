@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt/result"
@@ -39,23 +38,26 @@ type evaluator struct {
 	vars *varVisitor
 	ctx  *ctxVisitor
 	err  *errVisitor
+	wait *waitVisitor
 
-	wg sync.WaitGroup
+	visitors []Visitor
 
 	pauseOnErr bool
 }
 
-func NewEvaluator() *evaluator {
-	return NewEvaluatorWithLogger(newLogBuilder().Logger())
+func NewEvaluator(visitors ...Visitor) *evaluator {
+	return NewEvaluatorWithLogger(newLogBuilder().Logger(), visitors...)
 }
 
-func NewEvaluatorWithLogger(logger Logger) *evaluator {
+func NewEvaluatorWithLogger(logger Logger, visitors ...Visitor) *evaluator {
 	return &evaluator{
 		path:       newPathVisitor(),
 		log:        newLogVisitor(logger),
 		vars:       newVarVisitor(),
 		ctx:        newCtxVisitor(),
 		err:        newErrVisitor(),
+		wait:       newWaitVisitor(),
+		visitors:   visitors,
 		pauseOnErr: false,
 	}
 }
@@ -89,7 +91,7 @@ func (e *evaluator) Stop() {
 }
 
 func (e *evaluator) Wait() {
-	e.wg.Wait()
+	e.wait.Wait()
 }
 
 func (e *evaluator) HasError() bool {
@@ -125,9 +127,20 @@ func (e *evaluator) push(node Component) {
 	e.ctx.Push(e, node)
 	e.vars.Push(e, node)
 	e.err.Push(e, node)
+	e.wait.Push(e, node)
+
+	for _, v := range e.visitors {
+		v.Push(e, node)
+	}
 }
 
 func (e *evaluator) pop(node Component) {
+
+	for i := len(e.visitors) - 1; i >= 0; i-- {
+		e.visitors[i].Pop(e, node)
+	}
+
+	e.wait.Pop(e, node)
 	e.err.Pop(e, node)
 	e.vars.Pop(e, node)
 	e.log.Pop(e, node)
@@ -164,9 +177,10 @@ func (e *evaluator) addError(err error) {
 }
 
 func (e *evaluator) Fork(node Component) result.Result {
-	e.wg.Add(1)
+	wg := e.wait.Current()
+	wg.Add(1)
 	go func(child Evaluator) {
-		defer e.wg.Done()
+		defer wg.Done()
 		child.Evaluate(node)
 		child.Wait()
 	}(e.forkFor(node))
@@ -180,6 +194,7 @@ func (e *evaluator) forkFor(node Component) *evaluator {
 		vars:       e.vars.Clone(),
 		ctx:        e.ctx.Clone(),
 		err:        e.err.Clone(),
+		wait:       e.wait.Clone(),
 		pauseOnErr: false,
 	}
 }
