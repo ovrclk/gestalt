@@ -7,6 +7,8 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
+type Action func(Evaluator) result.Result
+
 type Component interface {
 	Name() string
 	IsPassThrough() bool

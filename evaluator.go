@@ -11,8 +11,6 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
-type Action func(Evaluator) result.Result
-
 type Evaluator interface {
 	Log() logrus.FieldLogger
 	Path() string
