@@ -36,7 +36,9 @@ func NewRetry(tries int, delay time.Duration) *WC {
 		"retry",
 		func(c Wrap, e gestalt.Evaluator) result.Result {
 			for i := 0; i < tries; i++ {
+
 				if i > 0 {
+					e.ClearError()
 					time.Sleep(delay)
 				}
 
@@ -48,8 +50,8 @@ func NewRetry(tries int, delay time.Duration) *WC {
 					return result.Complete()
 				}
 
-				e.ClearError()
 			}
+
 			return result.Error(fmt.Errorf("too many retries"))
 		})
 }
