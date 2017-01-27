@@ -14,7 +14,10 @@ func TestImportTo(t *testing.T) {
 
 	child := vars.NewVars()
 
-	m := vars.NewMeta().Require("a")
+	m := vars.NewMeta().
+		Require("a").
+		Default("a", "bad").
+		Default("c", "baz")
 
 	vars.ImportTo(m, parent, child)
 
@@ -25,6 +28,11 @@ func TestImportTo(t *testing.T) {
 	if val := child.Get("b"); val != "bar" {
 		t.Errorf("unrequired key not imported into child")
 	}
+
+	if val := child.Get("c"); val != "baz" {
+		t.Errorf("defaulted key not imported into child")
+	}
+
 }
 
 func TestExportTo(t *testing.T) {

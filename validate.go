@@ -50,8 +50,12 @@ func (v *validator) Push(c Component) {
 
 	newtop := &state{path, v.top.resolved.Clone()}
 
+	for k, _ := range c.Meta().Defaults() {
+		newtop.resolved.Add(k)
+	}
+
 	for _, k := range c.Meta().Requires() {
-		if !v.top.resolved.Contains(k) {
+		if !v.top.resolved.Contains(k) && !newtop.resolved.Contains(k) {
 			v.unresolved = append(v.unresolved, Unresolved{path, k})
 		}
 		newtop.resolved.Add(k)

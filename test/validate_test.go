@@ -73,4 +73,10 @@ func TestValidate(t *testing.T) {
 		t.Errorf("invalid missing vars: %#v", missing)
 	}
 
+	suite.WithMeta(vars.NewMeta().Default("y", "z"))
+
+	if missing := gestalt.Validate(suite); len(missing) > 0 {
+		t.Errorf("default entries not being applied")
+	}
+
 }
