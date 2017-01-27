@@ -163,6 +163,41 @@ func (h *varVisitor) Current() vars.Vars {
 	}
 }
 
+type errVisitor struct {
+	stack [][]error
+}
+
+func newErrVisitor() *errVisitor {
+	return &errVisitor{[][]error{[]error{}}}
+}
+
+func (h *errVisitor) Push(_ Traverser, _ Component) {
+	h.stack = append(h.stack, []error{})
+}
+
+func (h *errVisitor) Pop(_ Traverser, _ Component) {
+	top := h.stack[len(h.stack)-1]
+	next := append(h.stack[len(h.stack)-2], top...)
+	h.stack = h.stack[0 : len(h.stack)-1]
+	h.stack[len(h.stack)-1] = next
+}
+
+func (h *errVisitor) Clone() *errVisitor {
+	return newErrVisitor()
+}
+
+func (h *errVisitor) Current() []error {
+	return h.stack[len(h.stack)-1]
+}
+
+func (h *errVisitor) Clear() {
+	h.stack[len(h.stack)-1] = []error{}
+}
+
+func (h *errVisitor) Add(err error) {
+	h.stack[len(h.stack)-1] = append(h.stack[len(h.stack)-1], err)
+}
+
 type traceVisitor struct {
 }
 

@@ -40,8 +40,7 @@ type evaluator struct {
 	log  *logVisitor
 	vars *varVisitor
 	ctx  *ctxVisitor
-
-	errors []error
+	err  *errVisitor
 
 	wg sync.WaitGroup
 
@@ -58,6 +57,7 @@ func NewEvaluatorWithLogger(logger Logger) *evaluator {
 		log:        newLogVisitor(logger),
 		vars:       newVarVisitor(),
 		ctx:        newCtxVisitor(),
+		err:        newErrVisitor(),
 		pauseOnErr: false,
 	}
 }
@@ -95,15 +95,15 @@ func (e *evaluator) Wait() {
 }
 
 func (e *evaluator) HasError() bool {
-	return len(e.errors) > 0
+	return len(e.err.Current()) > 0
 }
 
 func (e *evaluator) ClearError() {
-	e.errors = make([]error, 0)
+	e.err.Clear()
 }
 
 func (e *evaluator) Errors() []error {
-	return e.errors
+	return e.err.Current()
 }
 
 func (e *evaluator) Evaluate(node Component) result.Result {
@@ -126,9 +126,11 @@ func (e *evaluator) push(node Component) {
 	e.log.Push(e, node)
 	e.ctx.Push(e, node)
 	e.vars.Push(e, node)
+	e.err.Push(e, node)
 }
 
 func (e *evaluator) pop(node Component) {
+	e.err.Pop(e, node)
 	e.vars.Pop(e, node)
 	e.log.Pop(e, node)
 	e.ctx.Pop(e, node)
@@ -160,7 +162,7 @@ func (e *evaluator) doEvaluate(node Component) result.Result {
 
 func (e *evaluator) addError(err error) {
 	e.Log().WithError(err).Error("eval failed")
-	e.errors = append(e.errors, NewError(e.Path(), err))
+	e.err.Add(NewError(e.Path(), err))
 }
 
 func (e *evaluator) Fork(node Component) result.Result {
@@ -179,6 +181,7 @@ func (e *evaluator) forkFor(node Component) *evaluator {
 		log:        e.log.Clone(),
 		vars:       e.vars.Clone(),
 		ctx:        e.ctx.Clone(),
+		err:        e.err.Clone(),
 		pauseOnErr: false,
 	}
 }
