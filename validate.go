@@ -11,12 +11,10 @@ func Validate(c Component) []Unresolved {
 
 func ValidateWith(c Component, vars vars.Vars) []Unresolved {
 	v := NewValidator()
-
 	for _, k := range vars.Keys() {
 		v.top.resolved.Add(k)
 	}
-
-	Walk(c, v)
+	Traverse(c, v)
 	return v.unresolved
 }
 
@@ -32,23 +30,20 @@ type validator struct {
 }
 
 type state struct {
-	path     string
 	resolved mapset.Set
 }
 
 func NewValidator() *validator {
-	top := &state{"", mapset.NewSet()}
+	top := &state{mapset.NewSet()}
 	return &validator{
 		stack: []*state{},
 		top:   top,
 	}
 }
 
-func (v *validator) Push(c Component) {
+func (v *validator) Push(t Traverser, c Component) {
 
-	path := pushPath(v.top.path, c)
-
-	newtop := &state{path, v.top.resolved.Clone()}
+	newtop := &state{v.top.resolved.Clone()}
 
 	for k, _ := range c.Meta().Defaults() {
 		newtop.resolved.Add(k)
@@ -56,7 +51,7 @@ func (v *validator) Push(c Component) {
 
 	for _, k := range c.Meta().Requires() {
 		if !v.top.resolved.Contains(k) && !newtop.resolved.Contains(k) {
-			v.unresolved = append(v.unresolved, Unresolved{path, k})
+			v.unresolved = append(v.unresolved, Unresolved{t.Path(), k})
 		}
 		newtop.resolved.Add(k)
 	}
@@ -65,7 +60,7 @@ func (v *validator) Push(c Component) {
 	v.top = newtop
 }
 
-func (v *validator) Pop(c Component) {
+func (v *validator) Pop(t Traverser, c Component) {
 	last := len(v.stack) - 1
 	v.top = v.stack[last]
 	v.stack = v.stack[0:last]

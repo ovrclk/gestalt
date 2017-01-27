@@ -3,7 +3,7 @@ package gestalt
 import "fmt"
 
 func Dump(c Component) {
-	Walk(c, newDumper())
+	Traverse(c, newDumper())
 }
 
 type dumper struct {
@@ -14,12 +14,12 @@ func newDumper() *dumper {
 	return &dumper{depth: -1}
 }
 
-func (d *dumper) Push(c Component) {
+func (d *dumper) Push(_ Traverser, c Component) {
 	d.depth += 1
 	d.display(c)
 }
 
-func (d *dumper) Pop(c Component) {
+func (d *dumper) Pop(_ Traverser, _ Component) {
 	d.depth -= 1
 }
 

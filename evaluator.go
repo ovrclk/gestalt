@@ -13,11 +13,6 @@ import (
 
 type Action func(Evaluator) result.Result
 
-type Handler interface {
-	Push(Evaluator, Component)
-	Pop(Evaluator, Component)
-}
-
 type Evaluator interface {
 	Log() logrus.FieldLogger
 	Path() string
@@ -41,10 +36,10 @@ type Evaluator interface {
 }
 
 type evaluator struct {
-	pathHandler *pathHandler
-	logHandler  *logHandler
-	varHandler  *varHandler
-	ctxHandler  *ctxHandler
+	path *pathVisitor
+	log  *logVisitor
+	vars *varVisitor
+	ctx  *ctxVisitor
 
 	errors []error
 
@@ -59,40 +54,40 @@ func NewEvaluator() *evaluator {
 
 func NewEvaluatorWithLogger(logger Logger) *evaluator {
 	return &evaluator{
-		pathHandler: newPathHandler(),
-		logHandler:  newLogHandler(logger),
-		varHandler:  newVarHandler(),
-		ctxHandler:  newCtxHandler(),
-		pauseOnErr:  false,
+		path:       newPathVisitor(),
+		log:        newLogVisitor(logger),
+		vars:       newVarVisitor(),
+		ctx:        newCtxVisitor(),
+		pauseOnErr: false,
 	}
 }
 
 func (e *evaluator) Log() logrus.FieldLogger {
-	return e.logHandler.Current().Log()
+	return e.log.Current().Log()
 }
 
 func (e *evaluator) Path() string {
-	return e.pathHandler.Current()
+	return e.path.Current()
 }
 
 func (e *evaluator) Message(msg string, args ...interface{}) {
-	e.logHandler.Current().Message(msg, args...)
+	e.log.Current().Message(msg, args...)
 }
 
 func (e *evaluator) Context() context.Context {
-	return e.ctxHandler.Current()
+	return e.ctx.Current()
 }
 
 func (e *evaluator) Emit(key string, value string) {
-	e.varHandler.Current().Put(key, value)
+	e.vars.Current().Put(key, value)
 }
 
 func (e *evaluator) Vars() vars.Vars {
-	return e.varHandler.Current()
+	return e.vars.Current()
 }
 
 func (e *evaluator) Stop() {
-	e.ctxHandler.Cancel()
+	e.ctx.Cancel()
 }
 
 func (e *evaluator) Wait() {
@@ -127,17 +122,17 @@ func (e *evaluator) Evaluate(node Component) result.Result {
 }
 
 func (e *evaluator) push(node Component) {
-	e.pathHandler.Push(e, node)
-	e.logHandler.Push(e, node)
-	e.ctxHandler.Push(e, node)
-	e.varHandler.Push(e, node)
+	e.path.Push(e, node)
+	e.log.Push(e, node)
+	e.ctx.Push(e, node)
+	e.vars.Push(e, node)
 }
 
 func (e *evaluator) pop(node Component) {
-	e.varHandler.Pop(e, node)
-	e.logHandler.Pop(e, node)
-	e.ctxHandler.Pop(e, node)
-	e.pathHandler.Pop(e, node)
+	e.vars.Pop(e, node)
+	e.log.Pop(e, node)
+	e.ctx.Pop(e, node)
+	e.path.Pop(e, node)
 }
 
 func (e *evaluator) doEvaluate(node Component) result.Result {
@@ -180,11 +175,11 @@ func (e *evaluator) Fork(node Component) result.Result {
 
 func (e *evaluator) forkFor(node Component) *evaluator {
 	return &evaluator{
-		pathHandler: e.pathHandler.Clone(),
-		logHandler:  e.logHandler.Clone(),
-		varHandler:  e.varHandler.Clone(),
-		ctxHandler:  e.ctxHandler.Clone(),
-		pauseOnErr:  false,
+		path:       e.path.Clone(),
+		log:        e.log.Clone(),
+		vars:       e.vars.Clone(),
+		ctx:        e.ctx.Clone(),
+		pauseOnErr: false,
 	}
 }
 
