@@ -18,7 +18,7 @@ func suite() gestalt.Component {
 
 func pingServer() gestalt.Component {
 	return g.SH("ping", "echo", "ping")
-	//	WithMeta(vars.NewMeta().Require("host"))
+	//	WithMeta(g.Require("host"))
 }
 
 func failing() gestalt.Component {

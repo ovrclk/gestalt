@@ -49,6 +49,14 @@ func P() exec.TextPipe {
 	return exec.P()
 }
 
-func M() vars.Meta {
-	return vars.NewMeta()
+func Require(args ...string) vars.Meta {
+	return vars.NewMeta().Require(args...)
+}
+
+func Export(args ...string) vars.Meta {
+	return vars.NewMeta().Export(args...)
+}
+
+func Default(k, v string) vars.Meta {
+	return vars.NewMeta().Default(k, v)
 }

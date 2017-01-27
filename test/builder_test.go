@@ -42,7 +42,7 @@ func TestVars_group(t *testing.T) {
 	suite := g.Suite("has-embedded").
 		Run(g.Group("has-passthru").
 			Run(producer(t)).
-			WithMeta(g.M().Export("a", "b", "c"))).
+			WithMeta(g.Export("a", "b", "c"))).
 		Run(consumer(t))
 	runComponent(t, suite)
 }
@@ -51,7 +51,7 @@ func TestVars_suite(t *testing.T) {
 	suite := g.Suite("has-embedded").
 		Run(g.Suite("has-passthru").
 			Run(producer(t)).
-			WithMeta(g.M().Export("a", "b", "c"))).
+			WithMeta(g.Export("a", "b", "c"))).
 		Run(consumer(t))
 	runComponent(t, suite)
 }
@@ -88,12 +88,12 @@ func TestCliVars(t *testing.T) {
 func TextExpand(t *testing.T) {
 	producer := g.SH("producer", "echo", "{{host}}", "bar", "baz").
 		FN(g.P().Capture("a", "b", "c")).
-		WithMeta(g.M().Export("a", "b", "c").Require("host"))
+		WithMeta(g.Export("a", "b", "c").Require("host"))
 
 	suite := g.Suite("suite").
 		Run(producer).
 		Run(consumer(t)).
-		WithMeta(g.M().Require("host"))
+		WithMeta(g.Require("host"))
 
 	{
 		args := []string{"-shost=foo"}
@@ -120,12 +120,12 @@ func TestDump(t *testing.T) {
 func producer(t *testing.T) gestalt.Component {
 	return g.SH("producer", "echo", "foo", "bar", "baz").
 		FN(g.P().Capture("a", "b", "c")).
-		WithMeta(g.M().Export("a", "b", "c"))
+		WithMeta(g.Export("a", "b", "c"))
 }
 
 func consumer(t *testing.T) gestalt.Component {
 	return g.FN("consumer", readFields(t)).
-		WithMeta(g.M().Require("a", "b", "c"))
+		WithMeta(g.Require("a", "b", "c"))
 }
 
 func readFields(t *testing.T) gestalt.Action {
