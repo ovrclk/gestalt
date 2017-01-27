@@ -6,16 +6,32 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
+type path struct {
+	base string
+	name string
+}
+
 type pathHandler struct {
-	stack []string
+	stack []path
 }
 
 func newPathHandler() *pathHandler {
-	return &pathHandler{}
+	return &pathHandler{[]path{path{}}}
 }
 
 func (h *pathHandler) Push(_ Evaluator, node Component) {
-	h.stack = append(h.stack, pushPath(h.Current(), node))
+	var top path
+
+	base := h.Base()
+	next := base + "/" + node.Name()
+
+	if node.IsPassThrough() {
+		top = path{base, next}
+	} else {
+		top = path{next, next}
+	}
+
+	h.stack = append(h.stack, top)
 }
 
 func (h *pathHandler) Pop(_ Evaluator, _ Component) {
@@ -25,15 +41,19 @@ func (h *pathHandler) Pop(_ Evaluator, _ Component) {
 }
 
 func (h *pathHandler) Clone() *pathHandler {
-	top := h.Current()
-	return &pathHandler{[]string{top}}
+	return &pathHandler{[]path{h.top()}}
 }
 
 func (h *pathHandler) Current() string {
-	if sz := len(h.stack); sz > 0 {
-		return h.stack[sz-1]
-	}
-	return ""
+	return h.top().name
+}
+
+func (h *pathHandler) Base() string {
+	return h.top().base
+}
+
+func (h *pathHandler) top() path {
+	return h.stack[len(h.stack)-1]
 }
 
 type logHandler struct {

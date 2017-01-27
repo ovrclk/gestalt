@@ -12,12 +12,18 @@ func main() {
 
 func suite() gestalt.Component {
 	return g.Suite("integration").
-		Run(pingServer()).
-		Run(failing())
+		Run(pingServer())
+	//Run(failing())
 }
 
 func pingServer() gestalt.Component {
-	return g.SH("ping", "echo", "ping")
+	return g.Group("server").
+		Run(g.Retry(5).
+			Run(
+				g.Group("start").
+					Run(g.SH("cleanup", "echo", "ping")).
+					Run(g.SH("start", "echo", "start")))).
+		Run(g.SH("check", "echo", "ok"))
 	//	WithMeta(g.Require("host"))
 }
 
