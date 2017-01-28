@@ -2,8 +2,6 @@ package gestalt
 
 import (
 	"context"
-	"fmt"
-	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt/result"
@@ -195,30 +193,4 @@ var defaultEvalHandler = _defaultEvalHandler{}
 
 func (eh _defaultEvalHandler) Eval(e Evaluator, node Component) result.Result {
 	return node.Eval(e)
-}
-
-func (e *evaluator) doPause(err error) bool {
-	fmt.Fprintf(os.Stderr, "Error during %v\n", e.Path())
-	fmt.Fprintf(os.Stderr, "%v\n", err)
-	if err, ok := err.(ErrorWithDetail); ok {
-		fmt.Fprintf(os.Stderr, "%v\n", err.Detail())
-	}
-
-	fmt.Fprintf(os.Stderr, "Current Vars:\n")
-	for _, k := range e.Vars().Keys() {
-		fmt.Fprintf(os.Stderr, "%v=%v\n", k, e.Vars().Get(k))
-	}
-
-	fmt.Fprintf(os.Stderr, "Retry? [y/n]:")
-
-	bytes := make([]byte, 200)
-	n, err := os.Stdin.Read(bytes)
-	if err != nil {
-		return true
-	}
-
-	if n > 0 && bytes[0] == 'y' {
-		return false
-	}
-	return true
 }
