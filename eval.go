@@ -42,7 +42,11 @@ type evaluator struct {
 
 	visitors []Visitor
 
-	pauseOnErr bool
+	handler evalHandler
+}
+
+type evalHandler interface {
+	Eval(Evaluator, Component) result.Result
 }
 
 func NewEvaluator(visitors ...Visitor) *evaluator {
@@ -51,14 +55,14 @@ func NewEvaluator(visitors ...Visitor) *evaluator {
 
 func NewEvaluatorWithLogger(logger Logger, visitors ...Visitor) *evaluator {
 	return &evaluator{
-		path:       newPathVisitor(),
-		log:        newLogVisitor(logger),
-		vars:       newVarVisitor(),
-		ctx:        newCtxVisitor(),
-		err:        newErrVisitor(),
-		wait:       newWaitVisitor(),
-		visitors:   visitors,
-		pauseOnErr: false,
+		path:     newPathVisitor(),
+		log:      newLogVisitor(logger),
+		vars:     newVarVisitor(),
+		ctx:      newCtxVisitor(),
+		err:      newErrVisitor(),
+		wait:     newWaitVisitor(),
+		visitors: visitors,
+		handler:  defaultEvalHandler,
 	}
 }
 
@@ -107,17 +111,15 @@ func (e *evaluator) Errors() []error {
 }
 
 func (e *evaluator) Evaluate(node Component) result.Result {
-
 	e.push(node)
 
-	result := e.doEvaluate(node)
+	result := e.handler.Eval(e, node)
 
 	if result.IsError() {
 		e.addError(result.Err())
 	}
 
 	e.pop(node)
-
 	return result
 }
 
@@ -148,29 +150,6 @@ func (e *evaluator) pop(node Component) {
 	e.path.Pop(e, node)
 }
 
-func (e *evaluator) doEvaluate(node Component) result.Result {
-
-	var result result.Result
-
-	for {
-		result = node.Eval(e)
-
-		if !result.IsError() {
-			break
-		}
-
-		if !e.pauseOnErr {
-			break
-		}
-
-		if e.doPause(result.Err()) {
-			break
-		}
-	}
-
-	return result
-}
-
 func (e *evaluator) addError(err error) {
 	e.Log().WithError(err).Error("eval failed")
 	e.err.Add(NewError(e.Path(), err))
@@ -189,14 +168,22 @@ func (e *evaluator) Fork(node Component) result.Result {
 
 func (e *evaluator) forkFor(node Component) *evaluator {
 	return &evaluator{
-		path:       e.path.Clone(),
-		log:        e.log.Clone(),
-		vars:       e.vars.Clone(),
-		ctx:        e.ctx.Clone(),
-		err:        e.err.Clone(),
-		wait:       e.wait.Clone(),
-		pauseOnErr: false,
+		path:    e.path.Clone(),
+		log:     e.log.Clone(),
+		vars:    e.vars.Clone(),
+		ctx:     e.ctx.Clone(),
+		err:     e.err.Clone(),
+		wait:    e.wait.Clone(),
+		handler: defaultEvalHandler,
 	}
+}
+
+type _defaultEvalHandler struct{}
+
+var defaultEvalHandler = _defaultEvalHandler{}
+
+func (eh _defaultEvalHandler) Eval(e Evaluator, node Component) result.Result {
+	return node.Eval(e)
 }
 
 func (e *evaluator) doPause(err error) bool {

@@ -82,9 +82,11 @@ type options struct {
 
 	cmdShow *kingpin.CmdClause
 
-	cmdEval      *kingpin.CmdClause
-	pauseOnError *bool
-	trace        *bool
+	cmdEval *kingpin.CmdClause
+	trace   *bool
+
+	breakpoints *[]string
+	failpoints  *[]string
 
 	cmdValidate *kingpin.CmdClause
 }
@@ -120,14 +122,19 @@ func newOptions(r *runner) *options {
 	opts.cmdEval = opts.app.
 		Command("eval", "run components").Default()
 
-	opts.pauseOnError = opts.cmdEval.
-		Flag("pause-on-error", "Pause on error").
-		Short('P').
-		Bool()
-
 	opts.trace = opts.cmdEval.
 		Flag("trace", "Trace execution").
 		Bool()
+
+	opts.breakpoints = opts.cmdEval.
+		Flag("breakpoint", "add breakpoint").
+		Short('B').
+		Strings()
+
+	opts.failpoints = opts.cmdEval.
+		Flag("failpoints", "breakpoint after failure").
+		Short('b').
+		Strings()
 
 	opts.cmdShow = opts.app.
 		Command("show", "display component tree")
@@ -152,13 +159,28 @@ func (r *runner) doEval(opts *options) {
 
 	e := NewEvaluatorWithLogger(lb.Logger(), visitors...)
 
+	if opts.breakpoints != nil || opts.failpoints != nil {
+		handler := newDebugHandler(os.Stdin, os.Stdout)
+
+		if opts.breakpoints != nil {
+			for _, point := range *opts.breakpoints {
+				handler.AddBreakpoint(point)
+			}
+		}
+		if opts.failpoints != nil {
+			for _, point := range *opts.failpoints {
+				handler.AddFailpoint(point)
+			}
+		}
+
+		e.handler = handler
+	}
+
 	e.Vars().Merge(opts.getVars())
 
 	if err := r.showUnresolvedVars(opts, e.Vars()); err != nil {
 		opts.app.FatalIfError(err, "")
 	}
-
-	e.pauseOnErr = *opts.pauseOnError
 
 	e.Evaluate(r.cmp)
 	e.Wait()
