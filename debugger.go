@@ -9,6 +9,7 @@ import (
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
+	"github.com/fatih/color"
 	"github.com/ovrclk/gestalt/result"
 )
 
@@ -47,7 +48,7 @@ func (h *debugHandler) AddFailpoint(expr string) error {
 
 func (h *debugHandler) Eval(e Evaluator, node Component) result.Result {
 
-	if h.matchBreakPath(e.Path(), h.breakpoints) {
+	if h.matchBreakPath(e.Path(), h.breakpoints, "break") {
 		h.runBreakConsole(e, node)
 	}
 
@@ -60,7 +61,7 @@ func (h *debugHandler) Eval(e Evaluator, node Component) result.Result {
 			break
 		}
 
-		if !h.matchBreakPath(e.Path(), h.failpoints) {
+		if !h.matchBreakPath(e.Path(), h.failpoints, "fail") {
 			break
 		}
 
@@ -80,6 +81,25 @@ func (h *debugHandler) runFailureConsole(e Evaluator, node Component, err error)
 	return h.runDebugger(e, node, h.makeFailureApp, err)
 }
 
+func (h *debugHandler) printDBGHeader(e Evaluator, errors []error) {
+
+	errc := len(e.Errors()) + len(errors)
+
+	clr := color.New()
+	if errc > 0 {
+		clr.Add(color.FgRed)
+	} else {
+		clr.Add(color.FgCyan)
+	}
+
+	clr.Fprintf(h.out, "\n%v: %v errors\n", e.Path(), errc)
+}
+
+func (h *debugHandler) fprintErr(fmt string, args ...interface{}) {
+	clr := color.New(color.FgHiRed)
+	clr.Fprintf(h.out, fmt, args...)
+}
+
 func (h *debugHandler) runDebugger(
 	e Evaluator,
 	node Component,
@@ -88,11 +108,7 @@ func (h *debugHandler) runDebugger(
 	for i := 0; ; i++ {
 		app := appBuilder()
 
-		if i == 0 {
-			app.app.Usage([]string{})
-		}
-
-		fmt.Fprintf(h.out, "\n%v: %v errors\n", e.Path(), len(e.Errors())+len(errors))
+		h.printDBGHeader(e, errors)
 
 		cmd, err := h.readCommand(app.app)
 		if err == io.EOF {
@@ -140,9 +156,14 @@ func (h *debugHandler) runDebugger(
 
 }
 
-func (h *debugHandler) matchBreakPath(path string, points []string) bool {
-	for _, point := range points {
+func (h *debugHandler) matchBreakPath(path string, points []string, prefix string) bool {
+	for idx, point := range points {
 		if strings.HasSuffix(path, point) {
+
+			fmt := "\n%vpoint %v at %v\n"
+
+			color.New(color.FgYellow).Fprintf(h.out, fmt, prefix, idx, path)
+
 			return true
 		}
 	}
@@ -150,11 +171,14 @@ func (h *debugHandler) matchBreakPath(path string, points []string) bool {
 }
 
 func (h *debugHandler) readCommand(app *kingpin.Application) (string, error) {
-	fmt.Fprintf(h.out, "\n> ")
+
+	color.New(color.FgHiBlue).Fprintf(h.out, "\n> ")
 
 	buf := bufio.NewReader(h.in)
 
 	line, err := buf.ReadBytes('\n')
+
+	fmt.Fprint(h.out, "\n")
 
 	if err != nil {
 		return "", err
@@ -171,7 +195,9 @@ func (h *debugHandler) readCommand(app *kingpin.Application) (string, error) {
 	cmd, err := app.Parse(args)
 
 	if err != nil {
-		fmt.Fprintf(h.out, "\ninvalid command: '%v'\n", strings.Join(args, " "))
+
+		h.fprintErr("invalid command: '%v'\n\n", strings.Join(args, " "))
+
 		app.Usage([]string{})
 	}
 
