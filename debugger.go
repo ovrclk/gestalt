@@ -92,7 +92,7 @@ func (h *debugHandler) printDBGHeader(e Evaluator, errors []error) {
 		clr.Add(color.FgCyan)
 	}
 
-	clr.Fprintf(h.out, "\n%v: %v errors\n", e.Path(), errc)
+	clr.Fprintf(h.out, "\n[%v: %v errors]\n", e.Path(), errc)
 }
 
 func (h *debugHandler) fprintErr(fmt string, args ...interface{}) {
@@ -172,7 +172,7 @@ func (h *debugHandler) matchBreakPath(path string, points []string, prefix strin
 
 func (h *debugHandler) readCommand(app *kingpin.Application) (string, error) {
 
-	color.New(color.FgHiBlue).Fprintf(h.out, "\n> ")
+	color.New(color.FgWhite, color.Bold).Fprintf(h.out, "\n> ")
 
 	buf := bufio.NewReader(h.in)
 
@@ -238,7 +238,7 @@ func (h *debugHandler) makeBreakApp() *debugApp {
 
 	// breakpoint commands
 	app.cmdBP = kapp.
-		Command("breakpoint", "manipulate breakpoints").Alias("bp")
+		Command("breakpoint", "manipulate breakpoints").Alias("b")
 	app.cmdBPList = app.cmdBP.
 		Command("list", "show current breakpoints").Alias("l").Default()
 	app.cmdBPAdd = app.cmdBP.
@@ -254,7 +254,7 @@ func (h *debugHandler) makeBreakApp() *debugApp {
 
 	// failpoint commands
 	app.cmdFP = kapp.
-		Command("failpoint", "manipulate failpoints").Alias("fp")
+		Command("failpoint", "manipulate failpoints").Alias("f")
 	app.cmdFPList = app.cmdFP.
 		Command("list", "show current failpoints").Alias("l").Default()
 	app.cmdFPAdd = app.cmdFP.
@@ -340,10 +340,9 @@ func (h *debugHandler) delPoints(current []string, indexes []uint) []string {
 	return points
 }
 
-var usageTemplate = `
-{{define "FormatCommand"}}\
+var usageTemplate = `{{define "FormatCommand"}}\
 {{if .FlagSummary}} {{.FlagSummary}}{{end}}\
-{{range .Args}} {{if not .Required}}[{{end}}<{{.Name}}>{{if .Value|IsCumulative}}...{{end}}{{if not .Required}}]{{end}}{{end}}\
+{{range .Args}} {{if not .Required}}[{{end}}<{{.Name}}>{{if .Value|IsCumulative}}...{{end}}{{if not .Required}}]{{end}}{{end}} {{if .Aliases}}(alias: {{index .Aliases 0}}){{end}}\
 {{end}}\
 {{define "FormatCommandList"}}\
 {{range .}}\
