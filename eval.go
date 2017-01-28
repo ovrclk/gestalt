@@ -30,9 +30,12 @@ type Evaluator interface {
 	HasError() bool
 	ClearError()
 	Errors() []error
+
+	Root() Component
 }
 
 type evaluator struct {
+	node *nodeVisitor
 	path *pathVisitor
 	log  *logVisitor
 	vars *varVisitor
@@ -55,6 +58,7 @@ func NewEvaluator(visitors ...Visitor) *evaluator {
 
 func NewEvaluatorWithLogger(logger Logger, visitors ...Visitor) *evaluator {
 	return &evaluator{
+		node:     newNodeVisitor(),
 		path:     newPathVisitor(),
 		log:      newLogVisitor(logger),
 		vars:     newVarVisitor(),
@@ -124,6 +128,7 @@ func (e *evaluator) Evaluate(node Component) result.Result {
 }
 
 func (e *evaluator) push(node Component) {
+	e.node.Push(e, node)
 	e.path.Push(e, node)
 	e.log.Push(e, node)
 	e.ctx.Push(e, node)
@@ -148,6 +153,7 @@ func (e *evaluator) pop(node Component) {
 	e.log.Pop(e, node)
 	e.ctx.Pop(e, node)
 	e.path.Pop(e, node)
+	e.node.Pop(e, node)
 }
 
 func (e *evaluator) addError(err error) {
@@ -166,8 +172,13 @@ func (e *evaluator) Fork(node Component) result.Result {
 	return result.Complete()
 }
 
+func (e *evaluator) Root() Component {
+	return e.node.Root()
+}
+
 func (e *evaluator) forkFor(node Component) *evaluator {
 	return &evaluator{
+		node:    e.node.Clone(),
 		path:    e.path.Clone(),
 		log:     e.log.Clone(),
 		vars:    e.vars.Clone(),

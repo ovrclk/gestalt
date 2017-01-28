@@ -14,6 +14,10 @@ type traverser struct {
 	visitors []Visitor
 }
 
+func TraversePaths(node Component, fn func(string)) {
+	Traverse(node, newSimpleVisitor(fn))
+}
+
 func Traverse(node Component, visitors ...Visitor) {
 	newTraverser(visitors...).Traverse(node)
 }
@@ -44,4 +48,18 @@ func (t *traverser) Traverse(node Component) {
 
 func (t *traverser) Path() string {
 	return t.path.Current()
+}
+
+type simpleVisitor struct {
+	fn func(string)
+}
+
+func newSimpleVisitor(fn func(string)) *simpleVisitor {
+	return &simpleVisitor{fn}
+}
+
+func (v *simpleVisitor) Push(t Traverser, _ Component) {
+	v.fn(t.Path())
+}
+func (v *simpleVisitor) Pop(_ Traverser, _ Component) {
 }

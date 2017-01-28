@@ -161,3 +161,8 @@ func (e *fakeEvaluator) Path() string {
 	e.t.Fatal("Wait() called")
 	return ""
 }
+
+func (e *fakeEvaluator) Root() gestalt.Component {
+	e.t.Fatal("Root() called")
+	return nil
+}

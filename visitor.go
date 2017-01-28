@@ -252,6 +252,30 @@ func (h *waitVisitor) Wait() {
 	}
 }
 
+type nodeVisitor struct {
+	stack []Component
+}
+
+func newNodeVisitor() *nodeVisitor {
+	return &nodeVisitor{}
+}
+
+func (h *nodeVisitor) Push(_ Traverser, node Component) {
+	h.stack = append(h.stack, node)
+}
+
+func (h *nodeVisitor) Pop(_ Traverser, _ Component) {
+	h.stack = h.stack[0 : len(h.stack)-1]
+}
+
+func (h *nodeVisitor) Clone() *nodeVisitor {
+	return newNodeVisitor()
+}
+
+func (h *nodeVisitor) Root() Component {
+	return h.stack[0]
+}
+
 type traceVisitor struct {
 	out io.Writer
 }

@@ -48,7 +48,7 @@ func (h *debugHandler) AddFailpoint(expr string) error {
 
 func (h *debugHandler) Eval(e Evaluator, node Component) result.Result {
 
-	if h.matchBreakPath(e.Path(), h.breakpoints, "break") {
+	if h.shouldBreak(e.Path(), h.breakpoints, "break") {
 		h.runBreakConsole(e, node)
 	}
 
@@ -61,7 +61,7 @@ func (h *debugHandler) Eval(e Evaluator, node Component) result.Result {
 			break
 		}
 
-		if !h.matchBreakPath(e.Path(), h.failpoints, "fail") {
+		if !h.shouldBreak(e.Path(), h.failpoints, "fail") {
 			break
 		}
 
@@ -150,24 +150,31 @@ func (h *debugHandler) runDebugger(
 		case check(app.cmdFPDel, cmd):
 			h.failpoints = h.delPoints(h.failpoints, *app.cmdFPDelEntries)
 			h.showPoints(h.failpoints)
+
+		case check(app.cmdList, cmd):
+			h.listComponents(e, node)
 		}
 	}
 	return continueResult
 
 }
 
-func (h *debugHandler) matchBreakPath(path string, points []string, prefix string) bool {
-	for idx, point := range points {
-		if strings.HasSuffix(path, point) {
-
-			fmt := "\n%vpoint %v at %v\n"
-
-			color.New(color.FgYellow).Fprintf(h.out, fmt, prefix, idx, path)
-
-			return true
-		}
+func (h *debugHandler) shouldBreak(path string, points []string, prefix string) bool {
+	if idx := h.matchPath(path, points); idx >= 0 {
+		fmt := "\n%vpoint %v at %v\n"
+		color.New(color.FgYellow).Fprintf(h.out, fmt, prefix, idx, path)
+		return true
 	}
 	return false
+}
+
+func (h *debugHandler) matchPath(path string, points []string) int {
+	for idx, point := range points {
+		if strings.HasSuffix(path, point) {
+			return idx
+		}
+	}
+	return -1
 }
 
 func (h *debugHandler) readCommand(app *kingpin.Application) (string, error) {
@@ -224,6 +231,8 @@ type debugApp struct {
 	cmdFPAddEntries *[]string
 	cmdFPDel        *kingpin.CmdClause
 	cmdFPDelEntries *[]uint
+
+	cmdList *kingpin.CmdClause
 }
 
 func (h *debugHandler) makeBreakApp() *debugApp {
@@ -267,6 +276,8 @@ func (h *debugHandler) makeBreakApp() *debugApp {
 	app.cmdFPDelEntries = app.cmdFPDel.
 		Arg("index", "failpoint numbers to delete").
 		Uints()
+
+	app.cmdList = kapp.Command("list", "list components").Alias("l")
 
 	return app
 }
@@ -338,6 +349,45 @@ func (h *debugHandler) delPoints(current []string, indexes []uint) []string {
 		}
 	}
 	return points
+}
+
+func (h *debugHandler) listComponents(e Evaluator, node Component) {
+	curpath := e.Path()
+	TraversePaths(e.Root(), func(path string) {
+
+		highlight := false
+
+		fmt.Fprintf(h.out, " ")
+
+		if path == curpath {
+			highlight = true
+			color.New(color.FgGreen).Fprintf(h.out, "*")
+		} else {
+			fmt.Fprintf(h.out, " ")
+		}
+
+		if idx := h.matchPath(path, h.breakpoints); idx >= 0 {
+			highlight = true
+			color.New(color.FgYellow).Fprintf(h.out, "*")
+		} else {
+			fmt.Fprintf(h.out, " ")
+		}
+
+		if idx := h.matchPath(path, h.failpoints); idx >= 0 {
+			highlight = true
+			color.New(color.FgRed).Fprintf(h.out, "*")
+		} else {
+			fmt.Fprintf(h.out, " ")
+		}
+
+		fmt.Fprintf(h.out, " ")
+
+		if highlight {
+			color.New(color.FgWhite).Fprintf(h.out, "%v\n", path)
+		} else {
+			fmt.Fprintf(h.out, "%v\n", path)
+		}
+	})
 }
 
 var usageTemplate = `{{define "FormatCommand"}}\
