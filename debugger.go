@@ -92,6 +92,8 @@ func (h *debugHandler) runDebugger(
 			app.app.Usage([]string{})
 		}
 
+		fmt.Fprintf(h.out, "\n%v: %v errors\n", e.Path(), len(e.Errors())+len(errors))
+
 		cmd, err := h.readCommand(app.app)
 		if err == io.EOF {
 			return continueResult
@@ -112,6 +114,26 @@ func (h *debugHandler) runDebugger(
 			h.showErrors(e, node, errors...)
 		case check(app.cmdVars, cmd):
 			h.showVars(e, node)
+
+		// breakpoints
+		case check(app.cmdBPList, cmd):
+			h.showPoints(h.breakpoints)
+		case check(app.cmdBPAdd, cmd):
+			h.breakpoints = append(h.breakpoints, *app.cmdBPAddEntries...)
+			h.showPoints(h.breakpoints)
+		case check(app.cmdBPDel, cmd):
+			h.breakpoints = h.delPoints(h.breakpoints, *app.cmdBPDelEntries)
+			h.showPoints(h.breakpoints)
+
+		// failpoints
+		case check(app.cmdFPList, cmd):
+			h.showPoints(h.failpoints)
+		case check(app.cmdFPAdd, cmd):
+			h.failpoints = append(h.failpoints, *app.cmdFPAddEntries...)
+			h.showPoints(h.failpoints)
+		case check(app.cmdFPDel, cmd):
+			h.failpoints = h.delPoints(h.failpoints, *app.cmdFPDelEntries)
+			h.showPoints(h.failpoints)
 		}
 	}
 	return continueResult
@@ -140,6 +162,10 @@ func (h *debugHandler) readCommand(app *kingpin.Application) (string, error) {
 
 	line = bytes.TrimRight(line, "\n")
 
+	if len(line) == 0 {
+		return "", nil
+	}
+
 	args := strings.Fields(string(line))
 
 	cmd, err := app.Parse(args)
@@ -158,6 +184,20 @@ type debugApp struct {
 	cmdRetry    *kingpin.CmdClause
 	cmdErrors   *kingpin.CmdClause
 	cmdVars     *kingpin.CmdClause
+
+	cmdBP           *kingpin.CmdClause
+	cmdBPList       *kingpin.CmdClause
+	cmdBPAdd        *kingpin.CmdClause
+	cmdBPAddEntries *[]string
+	cmdBPDel        *kingpin.CmdClause
+	cmdBPDelEntries *[]uint
+
+	cmdFP           *kingpin.CmdClause
+	cmdFPList       *kingpin.CmdClause
+	cmdFPAdd        *kingpin.CmdClause
+	cmdFPAddEntries *[]string
+	cmdFPDel        *kingpin.CmdClause
+	cmdFPDelEntries *[]uint
 }
 
 func (h *debugHandler) makeBreakApp() *debugApp {
@@ -168,7 +208,40 @@ func (h *debugHandler) makeBreakApp() *debugApp {
 	app.cmdErrors = kapp.
 		Command("errors", "show errors").Alias("e")
 	app.cmdVars = kapp.
-		Command("vars", "show vars").Alias("v")
+		Command("vars", "show current vars").Alias("v")
+
+	// breakpoint commands
+	app.cmdBP = kapp.
+		Command("breakpoint", "manipulate breakpoints").Alias("bp")
+	app.cmdBPList = app.cmdBP.
+		Command("list", "show current breakpoints").Alias("l").Default()
+	app.cmdBPAdd = app.cmdBP.
+		Command("add", "add breakpoints").Alias("a")
+	app.cmdBPAddEntries = app.cmdBPAdd.
+		Arg("pattern", "breakpoint pattern to add").
+		Strings()
+	app.cmdBPDel = app.cmdBP.
+		Command("del", "delete breakpoints").Alias("d")
+	app.cmdBPDelEntries = app.cmdBPDel.
+		Arg("index", "breakpoint numbers to delete").
+		Uints()
+
+	// failpoint commands
+	app.cmdFP = kapp.
+		Command("failpoint", "manipulate failpoints").Alias("fp")
+	app.cmdFPList = app.cmdFP.
+		Command("list", "show current failpoints").Alias("l").Default()
+	app.cmdFPAdd = app.cmdFP.
+		Command("add", "add failpoint").Alias("a")
+	app.cmdFPAddEntries = app.cmdFPAdd.
+		Arg("pattern", "failpoint pattern to add").
+		Strings()
+	app.cmdFPDel = app.cmdFP.
+		Command("del", "delete failpoints").Alias("d")
+	app.cmdFPDelEntries = app.cmdFPDel.
+		Arg("index", "failpoint numbers to delete").
+		Uints()
+
 	return app
 }
 
@@ -215,6 +288,30 @@ func (h *debugHandler) showVars(e Evaluator, _ Component) {
 	for _, k := range vars.Keys() {
 		fmt.Fprintf(h.out, "%v=%v\n", k, vars.Get(k))
 	}
+}
+
+func (h *debugHandler) showPoints(points []string) {
+	for i, point := range points {
+		fmt.Fprintf(h.out, "[%v]\t%v\n", i, point)
+	}
+}
+
+func (h *debugHandler) delPoints(current []string, indexes []uint) []string {
+	points := make([]string, 0)
+
+	for i, point := range current {
+		keep := true
+		for _, j := range indexes {
+			if j == uint(i) {
+				keep = false
+				break
+			}
+		}
+		if keep {
+			points = append(points, point)
+		}
+	}
+	return points
 }
 
 var usageTemplate = `
