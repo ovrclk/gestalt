@@ -73,34 +73,20 @@ func (h *debugHandler) Eval(e Evaluator, node Component) result.Result {
 }
 
 func (h *debugHandler) runBreakConsole(e Evaluator, node Component) commandResult {
-	for i := 0; ; i++ {
-		app := h.makeBreakApp()
-
-		if i == 0 {
-			app.app.Usage([]string{})
-		}
-
-		cmd, err := h.readCommand(app.app)
-		if err == io.EOF {
-			return continueResult
-		}
-
-		switch cmd {
-		case app.cmdContinue.FullCommand():
-			fmt.Fprintf(h.out, "continuing...\n")
-			return continueResult
-		case app.cmdErrors.FullCommand():
-			h.showErrors(e, node)
-		case app.cmdVars.FullCommand():
-			h.showVars(e, node)
-		}
-	}
-	return continueResult
+	return h.runDebugger(e, node, h.makeBreakApp)
 }
 
-func (h *debugHandler) runFailureConsole(e Evaluator, node Component, curerr error) commandResult {
+func (h *debugHandler) runFailureConsole(e Evaluator, node Component, err error) commandResult {
+	return h.runDebugger(e, node, h.makeFailureApp, err)
+}
+
+func (h *debugHandler) runDebugger(
+	e Evaluator,
+	node Component,
+	appBuilder func() *debugApp, errors ...error) commandResult {
+
 	for i := 0; ; i++ {
-		app := h.makeFailureApp()
+		app := appBuilder()
 
 		if i == 0 {
 			app.app.Usage([]string{})
@@ -111,20 +97,25 @@ func (h *debugHandler) runFailureConsole(e Evaluator, node Component, curerr err
 			return continueResult
 		}
 
-		switch cmd {
-		case app.cmdContinue.FullCommand():
+		check := func(clause *kingpin.CmdClause, cmd string) bool {
+			return clause != nil && clause.FullCommand() == cmd
+		}
+
+		switch {
+		case check(app.cmdContinue, cmd):
 			fmt.Fprintf(h.out, "continuing...\n")
 			return continueResult
-		case app.cmdRetry.FullCommand():
+		case check(app.cmdRetry, cmd):
 			fmt.Fprintf(h.out, "retrying...\n")
 			return retryResult
-		case app.cmdErrors.FullCommand():
-			h.showErrors(e, node, curerr)
-		case app.cmdVars.FullCommand():
+		case check(app.cmdErrors, cmd):
+			h.showErrors(e, node, errors...)
+		case check(app.cmdVars, cmd):
 			h.showVars(e, node)
 		}
 	}
 	return continueResult
+
 }
 
 func (h *debugHandler) matchBreakPath(path string, points []string) bool {
@@ -161,14 +152,7 @@ func (h *debugHandler) readCommand(app *kingpin.Application) (string, error) {
 	return cmd, err
 }
 
-type breakApp struct {
-	app         *kingpin.Application
-	cmdContinue *kingpin.CmdClause
-	cmdErrors   *kingpin.CmdClause
-	cmdVars     *kingpin.CmdClause
-}
-
-type failureApp struct {
+type debugApp struct {
 	app         *kingpin.Application
 	cmdContinue *kingpin.CmdClause
 	cmdRetry    *kingpin.CmdClause
@@ -176,9 +160,9 @@ type failureApp struct {
 	cmdVars     *kingpin.CmdClause
 }
 
-func (h *debugHandler) makeBreakApp() *breakApp {
+func (h *debugHandler) makeBreakApp() *debugApp {
 	kapp := h.makeBaseApp()
-	app := &breakApp{app: kapp}
+	app := &debugApp{app: kapp}
 	app.cmdContinue = kapp.
 		Command("continue", "continue execution").Alias("c")
 	app.cmdErrors = kapp.
@@ -188,17 +172,10 @@ func (h *debugHandler) makeBreakApp() *breakApp {
 	return app
 }
 
-func (h *debugHandler) makeFailureApp() *failureApp {
-	kapp := h.makeBaseApp()
-	app := &failureApp{app: kapp}
-	app.cmdContinue = kapp.
-		Command("continue", "continue execution").Alias("c")
-	app.cmdRetry = kapp.
+func (h *debugHandler) makeFailureApp() *debugApp {
+	app := h.makeBreakApp()
+	app.cmdRetry = app.app.
 		Command("retry", "retry component").Alias("r")
-	app.cmdErrors = kapp.
-		Command("errors", "show errors").Alias("e")
-	app.cmdVars = kapp.
-		Command("vars", "show vars").Alias("v")
 	return app
 }
 
@@ -207,9 +184,7 @@ func (h *debugHandler) makeBaseApp() *kingpin.Application {
 		Terminate(func(n int) {}).
 		UsageTemplate(usageTemplate).
 		Writer(h.out)
-
 	app.HelpFlag = app.HelpFlag.Hidden()
-
 	return app
 }
 

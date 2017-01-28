@@ -132,7 +132,7 @@ func newOptions(r *runner) *options {
 		Strings()
 
 	opts.failpoints = opts.cmdEval.
-		Flag("failpoints", "breakpoint after failure").
+		Flag("failpoint", "breakpoint after failure").
 		Short('b').
 		Strings()
 
