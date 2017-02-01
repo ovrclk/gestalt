@@ -1,7 +1,6 @@
 package test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/ovrclk/gestalt"
@@ -163,6 +162,9 @@ func assertGestaltSuccess(t *testing.T, c gestalt.Component, args []string) {
 			t.Fatalf("gestalt exited with nonzero status (%v", status)
 		}
 	}
+
+	args = append([]string{"eval"}, args...)
+
 	runner := gestalt.NewRunner().
 		WithComponent(c).
 		WithArgs(args).
@@ -176,6 +178,7 @@ func assertGestaltFails(t *testing.T, c gestalt.Component, args []string) {
 			t.Fail()
 		}
 	}
+	args = append([]string{"eval"}, args...)
 
 	runner := gestalt.NewRunner().
 		WithComponent(c).
@@ -183,9 +186,4 @@ func assertGestaltFails(t *testing.T, c gestalt.Component, args []string) {
 		WithTerminate(terminate)
 
 	runner.Run()
-}
-
-func TestMain(m *testing.M) {
-	//logrus.SetLevel(logrus.DebugLevel)
-	os.Exit(m.Run())
 }
