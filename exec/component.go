@@ -20,11 +20,13 @@ type CmdFn func(*bufio.Reader, gestalt.Evaluator) error
 type Cmd interface {
 	gestalt.Component
 	FN(CmdFn) Cmd
+	WorkingDir(string) Cmd
 }
 
 type CC struct {
 	cmp  gestalt.Component
 	Path string
+	Dir  string
 	Args []string
 	Env  []string
 
@@ -61,6 +63,11 @@ func (c *CC) FN(fn CmdFn) Cmd {
 	return c
 }
 
+func (c *CC) WorkingDir(dir string) Cmd {
+	c.Dir = dir
+	return c
+}
+
 func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 
 	path := vars.Expand(e.Vars(), c.Path)
@@ -71,6 +78,8 @@ func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 	}
 
 	cmd := exec.CommandContext(e.Context(), path, args...)
+
+	cmd.Dir = vars.Expand(e.Vars(), c.Dir)
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
