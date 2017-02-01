@@ -121,18 +121,18 @@ func newOptions(r *runner) *options {
 		Flag("set", "set variables").Short('s').StringMap()
 
 	opts.cmdEval = opts.app.
-		Command("eval", "run components").Default()
+		Command("eval", "run components")
 
 	opts.trace = opts.cmdEval.
 		Flag("trace", "Trace execution").
 		Bool()
 
-	opts.breakpoints = opts.cmdEval.
+	opts.breakpoints = opts.app.
 		Flag("breakpoint", "add breakpoint").
 		Short('B').
 		Strings()
 
-	opts.failpoints = opts.cmdEval.
+	opts.failpoints = opts.app.
 		Flag("failpoint", "breakpoint after failure").
 		Short('b').
 		Strings()
