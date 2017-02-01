@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/ovrclk/gestalt/vars"
 )
@@ -274,6 +275,53 @@ func (h *nodeVisitor) Clone() *nodeVisitor {
 
 func (h *nodeVisitor) Root() Component {
 	return h.stack[0]
+}
+
+type cmpProfile struct {
+	path  string
+	count int
+	total time.Duration
+	avg   time.Duration
+}
+
+type profileVisitor struct {
+	paths    map[string]*cmpProfile
+	profiles []*cmpProfile
+	stack    []time.Time
+}
+
+func newProfileVisitor() *profileVisitor {
+	return &profileVisitor{
+		paths: make(map[string]*cmpProfile),
+	}
+}
+
+func (h *profileVisitor) Push(_ Traverser, _ Component) {
+	h.stack = append(h.stack, time.Now())
+}
+
+func (h *profileVisitor) Pop(t Traverser, _ Component) {
+	topidx := len(h.stack) - 1
+
+	if topidx < 0 {
+		return
+	}
+	path := t.Path()
+
+	profile, ok := h.paths[path]
+	if !ok || profile == nil {
+		profile = &cmpProfile{path: path}
+		h.paths[path] = profile
+		h.profiles = append(h.profiles, profile)
+	}
+
+	top := h.stack[topidx]
+	now := time.Now()
+	delta := now.Sub(top)
+
+	profile.count += 1
+	profile.total += delta
+	profile.avg = profile.total / time.Duration(profile.count)
 }
 
 type traceVisitor struct {

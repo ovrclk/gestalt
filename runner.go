@@ -3,6 +3,7 @@ package gestalt
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ovrclk/gestalt/vars"
 
@@ -151,7 +152,9 @@ func (r *runner) doEval(opts *options) {
 		WithLevel(*opts.logLevel).
 		WithLogOut(*opts.logFile)
 
-	visitors := []Visitor{}
+	profiler := newProfileVisitor()
+
+	visitors := []Visitor{profiler}
 
 	if *opts.trace {
 		visitors = append(visitors, newTraceVisitor(os.Stdout))
@@ -185,11 +188,18 @@ func (r *runner) doEval(opts *options) {
 	e.Evaluate(r.cmp)
 	e.Wait()
 
+	// show profile info
+	fmt.Printf("\nprofile info:\n\n")
+	for _, p := range profiler.profiles {
+		fmt.Printf("%-5v%-10v%v\n", p.count, p.avg/time.Millisecond, p.path)
+	}
+
 	if !e.HasError() {
+		fmt.Printf("\nall tests passed\n")
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "\n\nEvaluation of %v failed:\n\n", r.cmp.Name())
+	fprintErr(os.Stderr, "\n\nEvaluation of %v failed:\n\n", r.cmp.Name())
 
 	for _, err := range e.Errors() {
 		if err, ok := err.(Error); ok {

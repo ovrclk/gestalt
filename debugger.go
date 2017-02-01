@@ -96,8 +96,7 @@ func (h *debugHandler) printDBGHeader(e Evaluator, errors []error) {
 }
 
 func (h *debugHandler) fprintErr(fmt string, args ...interface{}) {
-	clr := color.New(color.FgHiRed)
-	clr.Fprintf(h.out, fmt, args...)
+	fprintErr(h.out, fmt, args...)
 }
 
 func (h *debugHandler) runDebugger(
