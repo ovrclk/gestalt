@@ -1,5 +1,5 @@
 test:
-	go test -v -race .../gestalt/...
+	go test -v -race . ./component ./exec ./result ./vars ./test
 
 example:
 	(cd example && make)
