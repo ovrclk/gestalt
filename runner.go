@@ -3,7 +3,6 @@ package gestalt
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/ovrclk/gestalt/vars"
 
@@ -191,7 +190,7 @@ func (r *runner) doEval(opts *options) {
 	// show profile info
 	fmt.Printf("\nprofile info:\n\n")
 	for _, p := range profiler.profiles {
-		fmt.Printf("%-5v%-10v%v\n", p.count, p.avg/time.Millisecond, p.path)
+		fmt.Printf("%-5v%-10v%v\n", p.count, fmtDuration(p.avg), p.path)
 	}
 
 	if !e.HasError() {
