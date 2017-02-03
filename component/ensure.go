@@ -16,9 +16,9 @@ type Ensure interface {
 type EC struct {
 	cmp gestalt.Component
 
-	pre   gestalt.Component
-	child gestalt.Component
-	post  gestalt.Component
+	pre      gestalt.Component
+	children []gestalt.Component
+	post     gestalt.Component
 }
 
 func NewEnsure(name string) *EC {
@@ -33,7 +33,7 @@ func (c *EC) First(child gestalt.Component) Ensure {
 }
 
 func (c *EC) Run(child gestalt.Component) Ensure {
-	c.child = child
+	c.children = append(c.children, child)
 	return c
 }
 
@@ -64,9 +64,7 @@ func (c *EC) Children() []gestalt.Component {
 	if c.pre != nil {
 		children = append(children, c.pre)
 	}
-	if c.child != nil {
-		children = append(children, c.child)
-	}
+	children = append(children, c.children...)
 	if c.post != nil {
 		children = append(children, c.post)
 	}
@@ -82,8 +80,11 @@ func (c *EC) Eval(e gestalt.Evaluator) result.Result {
 		return result.Complete()
 	}
 
-	if c.child != nil {
-		e.Evaluate(c.child)
+	for _, child := range c.children {
+		e.Evaluate(child)
+		if e.HasError() {
+			break
+		}
 	}
 
 	if c.post != nil {
