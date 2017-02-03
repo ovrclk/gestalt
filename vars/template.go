@@ -40,3 +40,18 @@ func Expand(v Vars, current string) string {
 
 	return final.String()
 }
+
+func Extract(current string) []string {
+	var varnames []string
+
+	for lidx := strings.Index(current, "{{"); lidx >= 0; lidx = strings.Index(current, "{{") {
+		current = current[lidx+2:]
+		if ridx := strings.Index(current, "}}"); ridx > 0 {
+			key := current[0:ridx]
+			varnames = append(varnames, key)
+			current = current[ridx+2:]
+		}
+	}
+
+	return varnames
+}

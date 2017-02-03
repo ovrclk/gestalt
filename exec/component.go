@@ -33,8 +33,17 @@ type CC struct {
 }
 
 func NewCmd(name string, path string, args []string) Cmd {
+
+	requires := vars.Extract(path)
+	for _, arg := range args {
+		requires = append(requires, vars.Extract(arg)...)
+	}
+
+	cmp := gestalt.NewComponent(name, nil).
+		WithMeta(vars.NewMeta().Require(requires...))
+
 	return &CC{
-		cmp:  gestalt.NewComponent(name, nil),
+		cmp:  cmp,
 		Path: path,
 		Args: args,
 	}
