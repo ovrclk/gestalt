@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/ovrclk/gestalt/result"
 	"github.com/ovrclk/gestalt/vars"
 )
 
@@ -12,8 +11,8 @@ type Evaluator interface {
 	Log() logrus.FieldLogger
 	Path() string
 
-	Evaluate(Component) result.Result
-	Fork(Component) result.Result
+	Evaluate(Component) error
+	Fork(Component) error
 
 	Emit(string, string)
 	Vars() vars.Vars
@@ -47,7 +46,7 @@ type evaluator struct {
 }
 
 type evalHandler interface {
-	Eval(Evaluator, Component) result.Result
+	Eval(Evaluator, Component) error
 }
 
 func NewEvaluator(visitors ...Visitor) *evaluator {
@@ -112,13 +111,13 @@ func (e *evaluator) Errors() []error {
 	return e.err.Current()
 }
 
-func (e *evaluator) Evaluate(node Component) result.Result {
+func (e *evaluator) Evaluate(node Component) error {
 	e.push(node)
 
 	result := e.handler.Eval(e, node)
 
-	if result.IsError() {
-		e.addError(result.Err())
+	if result != nil {
+		e.addError(result)
 	}
 
 	e.pop(node)
@@ -159,7 +158,7 @@ func (e *evaluator) addError(err error) {
 	e.err.Add(NewError(e.Path(), err))
 }
 
-func (e *evaluator) Fork(node Component) result.Result {
+func (e *evaluator) Fork(node Component) error {
 	wg := e.wait.Current()
 	wg.Add(1)
 	go func(child Evaluator) {
@@ -167,7 +166,7 @@ func (e *evaluator) Fork(node Component) result.Result {
 		child.Evaluate(node)
 		child.Wait()
 	}(e.forkFor(node))
-	return result.Complete()
+	return nil
 }
 
 func (e *evaluator) Root() Component {
@@ -191,6 +190,6 @@ type _defaultEvalHandler struct{}
 
 var defaultEvalHandler = _defaultEvalHandler{}
 
-func (eh _defaultEvalHandler) Eval(e Evaluator, node Component) result.Result {
+func (eh _defaultEvalHandler) Eval(e Evaluator, node Component) error {
 	return node.Eval(e)
 }

@@ -5,13 +5,12 @@ import (
 
 	"github.com/ovrclk/gestalt"
 	"github.com/ovrclk/gestalt/component"
-	"github.com/ovrclk/gestalt/result"
 	"github.com/ovrclk/gestalt/vars"
 )
 
 func noop(name string) gestalt.Component {
-	return gestalt.NewComponent(name, func(_ gestalt.Evaluator) result.Result {
-		return result.Complete()
+	return gestalt.NewComponent(name, func(_ gestalt.Evaluator) error {
+		return nil
 	})
 }
 

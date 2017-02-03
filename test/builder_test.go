@@ -5,7 +5,6 @@ import (
 
 	"github.com/ovrclk/gestalt"
 	g "github.com/ovrclk/gestalt/builder"
-	"github.com/ovrclk/gestalt/result"
 )
 
 func TestBG(t *testing.T) {
@@ -62,9 +61,9 @@ func TestEnsure(t *testing.T) {
 		First(producer(t)).
 		Run(g.SH("failing", "false")).
 		Finally(
-			g.FN("consumer", func(_ gestalt.Evaluator) result.Result {
+			g.FN("consumer", func(_ gestalt.Evaluator) error {
 				ran = true
-				return result.Complete()
+				return nil
 			}))
 
 	assertGestaltFails(t, c, []string{})
@@ -128,7 +127,7 @@ func consumer(t *testing.T) gestalt.Component {
 }
 
 func readFields(t *testing.T) gestalt.Action {
-	return func(e gestalt.Evaluator) result.Result {
+	return func(e gestalt.Evaluator) error {
 
 		vars := e.Vars()
 
@@ -148,7 +147,7 @@ func readFields(t *testing.T) gestalt.Action {
 			t.Fatalf("incorrect values size (%v != %v)", x, "baz")
 		}
 
-		return result.Complete()
+		return nil
 	}
 }
 

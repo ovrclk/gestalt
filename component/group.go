@@ -2,7 +2,6 @@ package component
 
 import (
 	"github.com/ovrclk/gestalt"
-	"github.com/ovrclk/gestalt/result"
 	"github.com/ovrclk/gestalt/vars"
 )
 
@@ -57,7 +56,7 @@ func (c *GC) Run(child gestalt.Component) Group {
 	return c
 }
 
-func (c *GC) Eval(e gestalt.Evaluator) result.Result {
+func (c *GC) Eval(e gestalt.Evaluator) error {
 
 	// evaluate children up to an error
 	for _, child := range c.Children() {
@@ -72,5 +71,5 @@ func (c *GC) Eval(e gestalt.Evaluator) result.Result {
 		e.Wait()
 	}
 
-	return result.Complete()
+	return nil
 }

@@ -3,16 +3,15 @@ package gestalt
 import (
 	"fmt"
 
-	"github.com/ovrclk/gestalt/result"
 	"github.com/ovrclk/gestalt/vars"
 )
 
-type Action func(Evaluator) result.Result
+type Action func(Evaluator) error
 
 type Component interface {
 	Name() string
 	IsPassThrough() bool
-	Eval(Evaluator) result.Result
+	Eval(Evaluator) error
 	WithMeta(vars.Meta) Component
 	Meta() vars.Meta
 }
@@ -49,9 +48,9 @@ func (c *C) Meta() vars.Meta {
 	return c.meta
 }
 
-func (c *C) Eval(e Evaluator) result.Result {
+func (c *C) Eval(e Evaluator) error {
 	if c.action == nil {
-		return result.Error(fmt.Errorf("empty node"))
+		return fmt.Errorf("empty node")
 	} else {
 		return c.action(e)
 	}

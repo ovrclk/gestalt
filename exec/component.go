@@ -11,7 +11,6 @@ import (
 	"syscall"
 
 	"github.com/ovrclk/gestalt"
-	"github.com/ovrclk/gestalt/result"
 	"github.com/ovrclk/gestalt/vars"
 )
 
@@ -68,7 +67,7 @@ func (c *CC) WorkingDir(dir string) Cmd {
 	return c
 }
 
-func (c *CC) Eval(e gestalt.Evaluator) result.Result {
+func (c *CC) Eval(e gestalt.Evaluator) error {
 
 	path := vars.Expand(e.Vars(), c.Path)
 	args := make([]string, len(c.Args))
@@ -83,18 +82,18 @@ func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return result.Error(err)
+		return err
 	}
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
-		return result.Error(err)
+		return err
 	}
 
 	e.Message("running %v %v", path, strings.Join(args, " "))
 
 	if err := cmd.Start(); err != nil {
-		return result.Error(fmt.Errorf("can't execute %v: %v", path, err))
+		return fmt.Errorf("can't execute %v: %v", path, err)
 	}
 
 	stdoutBuf := new(bytes.Buffer)
@@ -124,9 +123,9 @@ func (c *CC) Eval(e gestalt.Evaluator) result.Result {
 		if err != nil {
 			return newError(err, path, args, stdoutBuf, stderrBuf)
 		}
-		return result.Complete()
+		return nil
 	}
-	return result.Complete()
+	return nil
 }
 
 func (c *CC) copyStdout() bool {
@@ -164,6 +163,6 @@ func expectedExecError(err error, e gestalt.Evaluator) bool {
 	return false
 }
 
-func newError(err error, path string, args []string, stdout *bytes.Buffer, stderr *bytes.Buffer) result.Result {
-	return result.Error(&Error{err.Error(), path, args, stdout.String(), stderr.String()})
+func newError(err error, path string, args []string, stdout *bytes.Buffer, stderr *bytes.Buffer) error {
+	return &Error{err.Error(), path, args, stdout.String(), stderr.String()}
 }

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ovrclk/gestalt"
-	"github.com/ovrclk/gestalt/result"
 	"github.com/ovrclk/gestalt/vars"
 )
 
@@ -22,7 +21,7 @@ type WC struct {
 	child   gestalt.Component
 }
 
-type WrapFn func(Wrap, gestalt.Evaluator) result.Result
+type WrapFn func(Wrap, gestalt.Evaluator) error
 
 func NewWrap(name string, wrapper WrapFn) *WC {
 	return &WC{
@@ -34,7 +33,7 @@ func NewWrap(name string, wrapper WrapFn) *WC {
 func NewRetry(tries int, delay time.Duration) *WC {
 	return NewWrap(
 		"retry",
-		func(c Wrap, e gestalt.Evaluator) result.Result {
+		func(c Wrap, e gestalt.Evaluator) error {
 			for i := 0; i < tries; i++ {
 
 				if i > 0 {
@@ -47,22 +46,22 @@ func NewRetry(tries int, delay time.Duration) *WC {
 				e.Evaluate(c.Child())
 
 				if !e.HasError() {
-					return result.Complete()
+					return nil
 				}
 
 			}
 
-			return result.Error(fmt.Errorf("too many retries"))
+			return fmt.Errorf("too many retries")
 		})
 }
 
 func NewBG() *WC {
-	return NewWrap("background", func(c Wrap, e gestalt.Evaluator) result.Result {
+	return NewWrap("background", func(c Wrap, e gestalt.Evaluator) error {
 		return e.Fork(c.Child())
 	})
 }
 
-func (c *WC) Eval(e gestalt.Evaluator) result.Result {
+func (c *WC) Eval(e gestalt.Evaluator) error {
 	return c.wrapper(c, e)
 }
 

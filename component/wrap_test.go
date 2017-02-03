@@ -9,19 +9,18 @@ import (
 
 	"github.com/ovrclk/gestalt"
 	"github.com/ovrclk/gestalt/component"
-	"github.com/ovrclk/gestalt/result"
 )
 
 func TestRetry(t *testing.T) {
 	count := 0
 
-	check := gestalt.NewComponent("check", func(e gestalt.Evaluator) result.Result {
+	check := gestalt.NewComponent("check", func(e gestalt.Evaluator) error {
 		assert.Equal(t, e.Path(), "/check")
 		if count == 2 {
-			return result.Complete()
+			return nil
 		}
 		count++
-		return result.Error(fmt.Errorf("invalid count"))
+		return fmt.Errorf("invalid count")
 	})
 
 	{
@@ -29,9 +28,7 @@ func TestRetry(t *testing.T) {
 		cmp := component.NewRetry(4, time.Millisecond).Run(check)
 		res := gestalt.NewEvaluator().Evaluate(cmp)
 
-		assert.True(t, res.IsComplete())
-		assert.Nil(t, res.Err())
-
+		assert.NoError(t, res)
 		assert.Equal(t, count, 2)
 	}
 
@@ -39,27 +36,26 @@ func TestRetry(t *testing.T) {
 		count = 0
 		cmp := component.NewRetry(2, time.Millisecond).Run(check)
 		res := gestalt.NewEvaluator().Evaluate(cmp)
-		assert.True(t, res.IsError())
-		assert.Error(t, res.Err())
+		assert.Error(t, res)
 		assert.Equal(t, count, 2)
 	}
 }
 
 func TestBG(t *testing.T) {
-	server := gestalt.NewComponent("server", func(e gestalt.Evaluator) result.Result {
+	server := gestalt.NewComponent("server", func(e gestalt.Evaluator) error {
 		select {
 		case <-e.Context().Done():
-			return result.Complete()
+			return nil
 		case <-time.After(time.Second / 2):
 			assert.Fail(t, "context channel never closed")
-			return result.Error(fmt.Errorf("context channel never closed"))
+			return fmt.Errorf("context channel never closed")
 		}
 	})
 
 	cmp := component.NewBG().Run(server)
 	e := gestalt.NewEvaluator()
 	res := e.Evaluate(cmp)
-	assert.True(t, res.IsComplete())
+	assert.NoError(t, res)
 	e.Stop()
 	e.Wait()
 }

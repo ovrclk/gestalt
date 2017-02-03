@@ -6,7 +6,6 @@ import (
 
 	"github.com/ovrclk/gestalt"
 	"github.com/ovrclk/gestalt/component"
-	"github.com/ovrclk/gestalt/result"
 	"github.com/ovrclk/gestalt/vars"
 	"github.com/stretchr/testify/assert"
 )
@@ -62,19 +61,19 @@ func TestExportWithEnsureParent(t *testing.T) {
 }
 
 func exportComponent(key, value string) gestalt.Component {
-	return gestalt.NewComponent("create", func(e gestalt.Evaluator) result.Result {
+	return gestalt.NewComponent("create", func(e gestalt.Evaluator) error {
 		e.Emit(key, value)
-		return result.Complete()
+		return nil
 	}).WithMeta(vars.NewMeta().Export(key))
 }
 
 func checkComponent(t *testing.T, key, value string) (gestalt.Component, *bool) {
 	ran := false
-	check := gestalt.NewComponent("check", func(e gestalt.Evaluator) result.Result {
+	check := gestalt.NewComponent("check", func(e gestalt.Evaluator) error {
 		ran = true
 		assert.True(t, e.Vars().Has(key))
 		assert.Equal(t, value, e.Vars().Get(key))
-		return result.Complete()
+		return nil
 	}).WithMeta(vars.NewMeta().Require(key))
 	return check, &ran
 }

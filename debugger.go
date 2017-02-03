@@ -10,7 +10,6 @@ import (
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/fatih/color"
-	"github.com/ovrclk/gestalt/result"
 )
 
 type commandResult string
@@ -46,18 +45,18 @@ func (h *debugHandler) AddFailpoint(expr string) error {
 	return nil
 }
 
-func (h *debugHandler) Eval(e Evaluator, node Component) result.Result {
+func (h *debugHandler) Eval(e Evaluator, node Component) error {
 
 	if h.shouldBreak(e.Path(), h.breakpoints, "break") {
 		h.runBreakConsole(e, node)
 	}
 
-	var result result.Result
+	var result error
 
 	for {
 		result = node.Eval(e)
 
-		if result.IsComplete() {
+		if result == nil {
 			break
 		}
 
@@ -65,7 +64,7 @@ func (h *debugHandler) Eval(e Evaluator, node Component) result.Result {
 			break
 		}
 
-		if h.runFailureConsole(e, node, result.Err()) != retryResult {
+		if h.runFailureConsole(e, node, result) != retryResult {
 			break
 		}
 	}

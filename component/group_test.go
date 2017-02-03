@@ -5,7 +5,6 @@ import (
 
 	"github.com/ovrclk/gestalt"
 	"github.com/ovrclk/gestalt/component"
-	"github.com/ovrclk/gestalt/result"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,24 +13,24 @@ func TestGroup(t *testing.T) {
 
 	cmp := component.NewGroup("server")
 	cmp.Run(component.NewBG().
-		Run(gestalt.NewComponent("server", func(e gestalt.Evaluator) result.Result {
+		Run(gestalt.NewComponent("server", func(e gestalt.Evaluator) error {
 			select {
 			case <-e.Context().Done():
 				t.Error("context cancelled")
-				return result.Complete()
+				return nil
 			case <-ch:
-				return result.Complete()
+				return nil
 			}
 		})))
 
-	cmp.Run(gestalt.NewComponent("check", func(e gestalt.Evaluator) result.Result {
-		return result.Complete()
+	cmp.Run(gestalt.NewComponent("check", func(e gestalt.Evaluator) error {
+		return nil
 	}))
 
 	e := gestalt.NewEvaluator()
 	res := e.Evaluate(cmp)
 
-	assert.True(t, res.IsComplete())
+	assert.NoError(t, res)
 
 	close(ch)
 
@@ -43,24 +42,24 @@ func TestSuite(t *testing.T) {
 
 	cmp := component.NewSuite("server")
 	cmp.Run(component.NewBG().
-		Run(gestalt.NewComponent("server", func(e gestalt.Evaluator) result.Result {
+		Run(gestalt.NewComponent("server", func(e gestalt.Evaluator) error {
 			select {
 			case <-e.Context().Done():
-				return result.Complete()
+				return nil
 			case <-ch:
 				t.Error("ch cancelled")
-				return result.Complete()
+				return nil
 			}
 		})))
 
-	cmp.Run(gestalt.NewComponent("check", func(e gestalt.Evaluator) result.Result {
-		return result.Complete()
+	cmp.Run(gestalt.NewComponent("check", func(e gestalt.Evaluator) error {
+		return nil
 	}))
 
 	e := gestalt.NewEvaluator()
 	res := e.Evaluate(cmp)
 
-	assert.True(t, res.IsComplete())
+	assert.NoError(t, res)
 
 	close(ch)
 

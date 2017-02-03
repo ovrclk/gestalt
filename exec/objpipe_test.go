@@ -9,7 +9,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt"
 	"github.com/ovrclk/gestalt/exec"
-	"github.com/ovrclk/gestalt/result"
 	"github.com/ovrclk/gestalt/vars"
 )
 
@@ -113,12 +112,12 @@ func (e *fakeEvaluator) Log() logrus.FieldLogger {
 	return nil
 }
 
-func (e *fakeEvaluator) Evaluate(gestalt.Component) result.Result {
+func (e *fakeEvaluator) Evaluate(gestalt.Component) error {
 	e.t.Fatal("Evaluate() called")
 	return nil
 }
 
-func (e *fakeEvaluator) Fork(gestalt.Component) result.Result {
+func (e *fakeEvaluator) Fork(gestalt.Component) error {
 	e.t.Fatal("Fork() called")
 	return nil
 }
