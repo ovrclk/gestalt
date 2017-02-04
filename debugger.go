@@ -118,15 +118,30 @@ func (h *debugHandler) runDebugger(
 		}
 
 		switch {
+
+		// control flow
 		case check(app.cmdContinue, cmd):
 			fmt.Fprintf(h.out, "continuing...\n")
 			return continueResult
 		case check(app.cmdRetry, cmd):
 			fmt.Fprintf(h.out, "retrying...\n")
 			return retryResult
-		case check(app.cmdErrors, cmd):
+
+		// errors
+		case check(app.cmdErrorsList, cmd):
 			h.showErrors(e, node, errors...)
-		case check(app.cmdVars, cmd):
+		case check(app.cmdErrorsDel, cmd):
+			h.clearErrors(e, node)
+			errors = []error{}
+
+		// vars
+		case check(app.cmdVarsList, cmd):
+			h.showVars(e, node)
+		case check(app.cmdVarsAdd, cmd):
+			h.addVars(e, node, *app.cmdVarsAddEntries)
+			h.showVars(e, node)
+		case check(app.cmdVarsDel, cmd):
+			h.delVars(e, node, *app.cmdVarsDelEntries)
 			h.showVars(e, node)
 
 		// breakpoints
@@ -213,9 +228,23 @@ type debugApp struct {
 	app         *kingpin.Application
 	cmdContinue *kingpin.CmdClause
 	cmdRetry    *kingpin.CmdClause
-	cmdErrors   *kingpin.CmdClause
-	cmdVars     *kingpin.CmdClause
 
+	// errors
+	cmdErrors     *kingpin.CmdClause
+	cmdErrorsList *kingpin.CmdClause
+	cmdErrorsDel  *kingpin.CmdClause
+
+	// vars
+	cmdVars     *kingpin.CmdClause
+	cmdVarsList *kingpin.CmdClause
+
+	cmdVarsAdd        *kingpin.CmdClause
+	cmdVarsAddEntries *[]string
+
+	cmdVarsDel        *kingpin.CmdClause
+	cmdVarsDelEntries *[]string
+
+	// breakpoint
 	cmdBP           *kingpin.CmdClause
 	cmdBPList       *kingpin.CmdClause
 	cmdBPAdd        *kingpin.CmdClause
@@ -223,6 +252,7 @@ type debugApp struct {
 	cmdBPDel        *kingpin.CmdClause
 	cmdBPDelEntries *[]uint
 
+	// failpoint
 	cmdFP           *kingpin.CmdClause
 	cmdFPList       *kingpin.CmdClause
 	cmdFPAdd        *kingpin.CmdClause
@@ -238,10 +268,24 @@ func (h *debugHandler) makeBreakApp() *debugApp {
 	app := &debugApp{app: kapp}
 	app.cmdContinue = kapp.
 		Command("continue", "continue execution").Alias("c")
+
 	app.cmdErrors = kapp.
-		Command("errors", "show errors").Alias("e")
+		Command("errors", "manage errors").Alias("e")
+	app.cmdErrorsList = app.cmdErrors.
+		Command("show", "show all errors").Default()
+	app.cmdErrorsDel = app.cmdErrors.
+		Command("clear", "clear all errors")
+
 	app.cmdVars = kapp.
-		Command("vars", "show current vars").Alias("v")
+		Command("vars", "manage variables").Alias("v")
+	app.cmdVarsList = app.cmdVars.
+		Command("list", "list all vars").Default()
+	app.cmdVarsAdd = app.cmdVars.
+		Command("set", "set variable value(s)")
+	app.cmdVarsAddEntries = app.cmdVarsAdd.Arg("name=val", "name and value of variable to set").Strings()
+	app.cmdVarsDel = app.cmdVars.
+		Command("unset", "delete variable(s)")
+	app.cmdVarsDelEntries = app.cmdVarsDel.Arg("name", "name of variable to unset").Strings()
 
 	// breakpoint commands
 	app.cmdBP = kapp.
@@ -318,10 +362,30 @@ func (h *debugHandler) showErrors(e Evaluator, _ Component, curerr ...error) {
 	}
 }
 
+func (h *debugHandler) clearErrors(e Evaluator, _ Component) {
+	e.ClearError()
+}
+
 func (h *debugHandler) showVars(e Evaluator, _ Component) {
 	vars := e.Vars()
 	for _, k := range vars.Keys() {
 		fmt.Fprintf(h.out, "%v=%v\n", k, vars.Get(k))
+	}
+}
+
+func (h *debugHandler) addVars(e Evaluator, _ Component, entries []string) {
+	for _, entry := range entries {
+		pieces := strings.SplitN(entry, "=", 2)
+		if len(pieces) != 2 {
+			continue
+		}
+		e.Vars().Put(pieces[0], pieces[1])
+	}
+}
+
+func (h *debugHandler) delVars(e Evaluator, _ Component, entries []string) {
+	for _, entry := range entries {
+		e.Vars().Unset(entry)
 	}
 }
 

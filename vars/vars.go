@@ -4,6 +4,8 @@ type Vars interface {
 	Put(string, string)
 	Get(string) string
 	Has(string) bool
+	Unset(string)
+
 	Keys() []string
 	Count() int
 
@@ -38,6 +40,10 @@ func (v *varmap) Count() int {
 func (v *varmap) Has(key string) bool {
 	_, ok := v.values[key]
 	return ok
+}
+
+func (v *varmap) Unset(key string) {
+	delete(v.values, key)
 }
 
 func (v *varmap) Keys() []string {
