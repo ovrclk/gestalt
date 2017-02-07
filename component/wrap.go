@@ -61,6 +61,14 @@ func NewBG() *WC {
 	})
 }
 
+func NewIgnore() *WC {
+	return NewWrap("ignore", func(c Wrap, e gestalt.Evaluator) error {
+		e.Evaluate(c.Child())
+		e.ClearError()
+		return nil
+	})
+}
+
 func (c *WC) Eval(e gestalt.Evaluator) error {
 	return c.wrapper(c, e)
 }

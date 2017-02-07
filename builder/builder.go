@@ -29,6 +29,10 @@ func Ensure(name string) component.Ensure {
 	return component.NewEnsure(name)
 }
 
+func Ignore() component.Wrap {
+	return component.NewIgnore()
+}
+
 func FN(name string, action gestalt.Action) gestalt.Component {
 	return gestalt.NewComponent(name, action)
 }

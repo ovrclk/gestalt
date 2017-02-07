@@ -59,3 +59,26 @@ func TestBG(t *testing.T) {
 	e.Stop()
 	e.Wait()
 }
+
+func TestIgnore(t *testing.T) {
+	ran := false
+	cmp := component.NewGroup("test").
+		Run(component.NewIgnore().Run(errComponent("die"))).
+		Run(gestalt.NewComponent("run", func(_ gestalt.Evaluator) error {
+			ran = true
+			return nil
+		}))
+
+	e := gestalt.NewEvaluator()
+	res := e.Evaluate(cmp)
+
+	assert.NoError(t, res)
+	assert.True(t, ran)
+
+}
+
+func errComponent(msg string) gestalt.Component {
+	return gestalt.NewComponent("failing", func(_ gestalt.Evaluator) error {
+		return fmt.Errorf("failed: %v", msg)
+	})
+}
