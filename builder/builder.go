@@ -17,6 +17,10 @@ func Suite(name string) component.Group {
 	return component.NewSuite(name)
 }
 
+func Noop(name string) gestalt.Component {
+	return gestalt.NoopComponent(name)
+}
+
 func BG() component.Wrap {
 	return component.NewBG()
 }

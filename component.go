@@ -31,6 +31,12 @@ func NewComponent(name string, action Action) *C {
 	return &C{name: name, action: action, meta: vars.NewMeta()}
 }
 
+func NoopComponent(name string) *C {
+	return NewComponent(name, func(_ Evaluator) error {
+		return nil
+	})
+}
+
 func (c *C) Name() string {
 	return c.name
 }
