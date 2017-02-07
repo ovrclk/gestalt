@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync/atomic"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
@@ -29,10 +30,22 @@ type debugHandler struct {
 
 	in  io.Reader
 	out io.Writer
+
+	interrupt uint32
+
+	curerror error
 }
 
 func newDebugHandler(in io.Reader, out io.Writer) *debugHandler {
 	return &debugHandler{in: in, out: out}
+}
+
+func (h *debugHandler) Interrupt() uint32 {
+	return atomic.AddUint32(&h.interrupt, 1)
+}
+
+func (h *debugHandler) shouldInterrupt() bool {
+	return atomic.SwapUint32(&h.interrupt, 0) > 0
 }
 
 func (h *debugHandler) AddBreakpoint(expr string) error {
@@ -47,42 +60,44 @@ func (h *debugHandler) AddFailpoint(expr string) error {
 
 func (h *debugHandler) Eval(e Evaluator, node Component) error {
 
-	if h.shouldBreak(e.Path(), h.breakpoints, "break") {
+	if h.shouldBreak(e.Path(), h.breakpoints, "break") || h.shouldInterrupt() {
 		h.runBreakConsole(e, node)
 	}
 
-	var result error
-
 	for {
-		result = node.Eval(e)
+		h.curerror = node.Eval(e)
 
-		if result == nil {
+		interrupt := h.shouldInterrupt()
+
+		if !interrupt && h.curerror == nil {
 			break
 		}
 
-		if !h.shouldBreak(e.Path(), h.failpoints, "fail") {
+		if !interrupt && !h.shouldBreak(e.Path(), h.failpoints, "fail") {
 			break
 		}
 
-		if h.runFailureConsole(e, node, result) != retryResult {
+		if h.runFailureConsole(e, node) != retryResult {
 			break
 		}
 	}
 
-	return result
+	return h.curerror
 }
 
 func (h *debugHandler) runBreakConsole(e Evaluator, node Component) commandResult {
 	return h.runDebugger(e, node, h.makeBreakApp)
 }
 
-func (h *debugHandler) runFailureConsole(e Evaluator, node Component, err error) commandResult {
-	return h.runDebugger(e, node, h.makeFailureApp, err)
+func (h *debugHandler) runFailureConsole(e Evaluator, node Component) commandResult {
+	return h.runDebugger(e, node, h.makeFailureApp)
 }
 
-func (h *debugHandler) printDBGHeader(e Evaluator, errors []error) {
+func (h *debugHandler) printDBGHeader(e Evaluator) {
 
-	errc := len(e.Errors()) + len(errors)
+	errors := h.curErrors(e)
+
+	errc := len(errors)
 
 	clr := color.New()
 	if errc > 0 {
@@ -101,12 +116,12 @@ func (h *debugHandler) fprintErr(fmt string, args ...interface{}) {
 func (h *debugHandler) runDebugger(
 	e Evaluator,
 	node Component,
-	appBuilder func() *debugApp, errors ...error) commandResult {
+	appBuilder func() *debugApp) commandResult {
 
 	for i := 0; ; i++ {
 		app := appBuilder()
 
-		h.printDBGHeader(e, errors)
+		h.printDBGHeader(e)
 
 		cmd, err := h.readCommand(app.app)
 		if err == io.EOF {
@@ -129,10 +144,9 @@ func (h *debugHandler) runDebugger(
 
 		// errors
 		case check(app.cmdErrorsList, cmd):
-			h.showErrors(e, node, errors...)
+			h.showErrors(e, node)
 		case check(app.cmdErrorsDel, cmd):
 			h.clearErrors(e, node)
-			errors = []error{}
 
 		// vars
 		case check(app.cmdVarsList, cmd):
@@ -340,21 +354,21 @@ func (h *debugHandler) makeBaseApp() *kingpin.Application {
 	return app
 }
 
-func (h *debugHandler) showErrors(e Evaluator, _ Component, curerr ...error) {
-
+func (h *debugHandler) curErrors(e Evaluator) []error {
 	errors := e.Errors()
-
-	fmt.Fprintf(h.out, "%v errors\n", len(errors)+len(curerr))
-
-	for _, err := range curerr {
-		fmt.Fprintf(h.out, "[%v]\n", e.Path())
-		fmt.Fprintf(h.out, "%v\n", err)
-		if errd, ok := err.(ErrorWithDetail); ok {
-			fmt.Fprintf(h.out, "%v\n", errd.Detail())
-		}
+	if h.curerror != nil {
+		errors = append(errors, h.curerror)
 	}
+	return errors
+}
+
+func (h *debugHandler) showErrors(e Evaluator, _ Component) {
+	errors := h.curErrors(e)
+
+	fmt.Fprintf(h.out, "%v errors\n", len(errors))
 
 	for _, err := range errors {
+		fmt.Fprintf(h.out, "[%v]\n", e.Path())
 		fmt.Fprintf(h.out, "%v\n", err)
 		if errd, ok := err.(ErrorWithDetail); ok {
 			fmt.Fprintf(h.out, "%v\n", errd.Detail())
@@ -364,6 +378,7 @@ func (h *debugHandler) showErrors(e Evaluator, _ Component, curerr ...error) {
 
 func (h *debugHandler) clearErrors(e Evaluator, _ Component) {
 	e.ClearError()
+	h.curerror = nil
 }
 
 func (h *debugHandler) showVars(e Evaluator, _ Component) {

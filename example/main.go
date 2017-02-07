@@ -11,6 +11,7 @@ func DevServer() gestalt.Component {
 		Run(g.SH("cleanup", "echo", "cleanup")).
 		Run(g.BG().
 			Run(g.SH("start", "while true; do echo .; sleep 1; done"))).
+		Run(g.SH("wait", "sleep", "10")).
 		Run(g.Retry(5).
 			Run(g.SH("check", "echo", "check")))
 }

@@ -3,6 +3,8 @@ package gestalt
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/ovrclk/gestalt/vars"
 
@@ -147,6 +149,8 @@ func newOptions(r *runner) *options {
 
 func (r *runner) doEval(opts *options) {
 
+	donech := make(chan interface{})
+
 	lb := newLogBuilder().
 		WithLevel(*opts.logLevel).
 		WithLogOut(*opts.logFile)
@@ -162,7 +166,7 @@ func (r *runner) doEval(opts *options) {
 	e := NewEvaluatorWithLogger(lb.Logger(), visitors...)
 
 	if opts.breakpoints != nil || opts.failpoints != nil {
-		handler := newDebugHandler(os.Stdin, os.Stdout)
+		handler := r.createDebugger(donech)
 
 		if opts.breakpoints != nil {
 			for _, point := range *opts.breakpoints {
@@ -186,6 +190,7 @@ func (r *runner) doEval(opts *options) {
 
 	e.Evaluate(r.cmp)
 	e.Wait()
+	close(donech)
 
 	// show profile info
 	fmt.Printf("\nprofile info:\n\n")
@@ -235,4 +240,29 @@ func (r *runner) showUnresolvedVars(opts *options, vars vars.Vars) error {
 	}
 
 	return fmt.Errorf("missing variables")
+}
+
+func (r *runner) createDebugger(donech <-chan interface{}) *debugHandler {
+	debugger := newDebugHandler(os.Stdin, os.Stdout)
+
+	go func() {
+		sigch := make(chan os.Signal)
+		signal.Notify(sigch)
+		defer close(sigch)
+		defer signal.Stop(sigch)
+
+		for {
+			select {
+			case sig := <-sigch:
+				if sig != syscall.SIGCHLD {
+					fmt.Printf("\nreceived signal %v\n", sig)
+					debugger.Interrupt()
+				}
+			case <-donech:
+				return
+			}
+		}
+	}()
+
+	return debugger
 }
