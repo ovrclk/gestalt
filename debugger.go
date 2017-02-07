@@ -32,8 +32,6 @@ type debugHandler struct {
 	out io.Writer
 
 	interrupt uint32
-
-	curerror error
 }
 
 func newDebugHandler(in io.Reader, out io.Writer) *debugHandler {
@@ -58,18 +56,24 @@ func (h *debugHandler) AddFailpoint(expr string) error {
 	return nil
 }
 
+type debuggerState struct {
+	err error
+}
+
 func (h *debugHandler) Eval(e Evaluator, node Component) error {
 
+	state := &debuggerState{}
+
 	if h.shouldBreak(e.Path(), h.breakpoints, "break") || h.shouldInterrupt() {
-		h.runBreakConsole(e, node)
+		h.runBreakConsole(e, node, state)
 	}
 
 	for {
-		h.curerror = node.Eval(e)
+		state.err = node.Eval(e)
 
 		interrupt := h.shouldInterrupt()
 
-		if !interrupt && h.curerror == nil {
+		if !interrupt && state.err == nil {
 			break
 		}
 
@@ -77,25 +81,25 @@ func (h *debugHandler) Eval(e Evaluator, node Component) error {
 			break
 		}
 
-		if h.runFailureConsole(e, node) != retryResult {
+		if h.runFailureConsole(e, node, state) != retryResult {
 			break
 		}
 	}
 
-	return h.curerror
+	return state.err
 }
 
-func (h *debugHandler) runBreakConsole(e Evaluator, node Component) commandResult {
-	return h.runDebugger(e, node, h.makeBreakApp)
+func (h *debugHandler) runBreakConsole(e Evaluator, node Component, state *debuggerState) commandResult {
+	return h.runDebugger(e, node, h.makeBreakApp, state)
 }
 
-func (h *debugHandler) runFailureConsole(e Evaluator, node Component) commandResult {
-	return h.runDebugger(e, node, h.makeFailureApp)
+func (h *debugHandler) runFailureConsole(e Evaluator, node Component, state *debuggerState) commandResult {
+	return h.runDebugger(e, node, h.makeFailureApp, state)
 }
 
-func (h *debugHandler) printDBGHeader(e Evaluator) {
+func (h *debugHandler) printDBGHeader(e Evaluator, state *debuggerState) {
 
-	errors := h.curErrors(e)
+	errors := h.curErrors(e, state)
 
 	errc := len(errors)
 
@@ -116,12 +120,13 @@ func (h *debugHandler) fprintErr(fmt string, args ...interface{}) {
 func (h *debugHandler) runDebugger(
 	e Evaluator,
 	node Component,
-	appBuilder func() *debugApp) commandResult {
+	appBuilder func() *debugApp,
+	state *debuggerState) commandResult {
 
 	for i := 0; ; i++ {
 		app := appBuilder()
 
-		h.printDBGHeader(e)
+		h.printDBGHeader(e, state)
 
 		cmd, err := h.readCommand(app.app)
 		if err == io.EOF {
@@ -144,9 +149,9 @@ func (h *debugHandler) runDebugger(
 
 		// errors
 		case check(app.cmdErrorsList, cmd):
-			h.showErrors(e, node)
+			h.showErrors(e, node, state)
 		case check(app.cmdErrorsDel, cmd):
-			h.clearErrors(e, node)
+			h.clearErrors(e, node, state)
 
 		// vars
 		case check(app.cmdVarsList, cmd):
@@ -354,16 +359,16 @@ func (h *debugHandler) makeBaseApp() *kingpin.Application {
 	return app
 }
 
-func (h *debugHandler) curErrors(e Evaluator) []error {
+func (h *debugHandler) curErrors(e Evaluator, state *debuggerState) []error {
 	errors := e.Errors()
-	if h.curerror != nil {
-		errors = append(errors, h.curerror)
+	if state.err != nil {
+		errors = append(errors, state.err)
 	}
 	return errors
 }
 
-func (h *debugHandler) showErrors(e Evaluator, _ Component) {
-	errors := h.curErrors(e)
+func (h *debugHandler) showErrors(e Evaluator, _ Component, state *debuggerState) {
+	errors := h.curErrors(e, state)
 
 	fmt.Fprintf(h.out, "%v errors\n", len(errors))
 
@@ -376,9 +381,9 @@ func (h *debugHandler) showErrors(e Evaluator, _ Component) {
 	}
 }
 
-func (h *debugHandler) clearErrors(e Evaluator, _ Component) {
+func (h *debugHandler) clearErrors(e Evaluator, _ Component, state *debuggerState) {
 	e.ClearError()
-	h.curerror = nil
+	state.err = nil
 }
 
 func (h *debugHandler) showVars(e Evaluator, _ Component) {
