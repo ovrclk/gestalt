@@ -1,11 +1,14 @@
 package gestalt
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/fatih/color"
 )
 
 type Logger interface {
@@ -40,8 +43,15 @@ func (l *logger) Message(msg string, args ...interface{}) {
 
 func (l *logger) Dump(msg string) {
 	fmt.Fprintf(l.logOut, "%v:\n", l.path)
-	l.logOut.Write([]byte(msg))
-	l.logOut.Write([]byte("\n"))
+
+	scanner := bufio.NewScanner(bytes.NewBuffer([]byte(msg)))
+
+	for scanner.Scan() {
+		color.New(color.FgWhite, color.Bold).Fprintf(l.logOut, "%v: ", l.path)
+		l.logOut.Write(scanner.Bytes())
+		l.logOut.Write([]byte("\n"))
+	}
+
 }
 
 func (l *logger) Stop(err error) {
