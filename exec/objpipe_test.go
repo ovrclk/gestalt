@@ -112,6 +112,11 @@ func (e *fakeEvaluator) Log() logrus.FieldLogger {
 	return nil
 }
 
+func (e *fakeEvaluator) Logger() gestalt.Logger {
+	e.t.Fatal("Logger() called")
+	return nil
+}
+
 func (e *fakeEvaluator) Evaluate(gestalt.Component) error {
 	e.t.Fatal("Evaluate() called")
 	return nil

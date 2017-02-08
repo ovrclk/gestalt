@@ -15,6 +15,7 @@ type Logger interface {
 
 	Start()
 	Message(string, ...interface{})
+	Dump(string)
 	Stop(error)
 }
 
@@ -34,6 +35,12 @@ func (l *logger) Start() {
 
 func (l *logger) Message(msg string, args ...interface{}) {
 	fmt.Fprintf(l.out, "%v: %v\n", l.path, fmt.Sprintf(msg, args...))
+}
+
+func (l *logger) Dump(msg string) {
+	fmt.Fprintf(l.out, "%v:\n", l.path)
+	l.out.Write([]byte(msg))
+	l.out.Write([]byte("\n"))
 }
 
 func (l *logger) Stop(err error) {

@@ -9,6 +9,7 @@ import (
 
 type Evaluator interface {
 	Log() logrus.FieldLogger
+	Logger() Logger
 	Path() string
 
 	Evaluate(Component) error
@@ -69,6 +70,10 @@ func NewEvaluatorWithLogger(logger Logger, visitors ...Visitor) *evaluator {
 
 func (e *evaluator) Log() logrus.FieldLogger {
 	return e.log.Current().Log()
+}
+
+func (e *evaluator) Logger() Logger {
+	return e.log.Current()
 }
 
 func (e *evaluator) Path() string {
