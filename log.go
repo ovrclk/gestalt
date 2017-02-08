@@ -20,9 +20,10 @@ type Logger interface {
 }
 
 type logger struct {
-	path string
-	log  logrus.FieldLogger
-	out  io.Writer
+	path   string
+	log    logrus.FieldLogger
+	out    io.Writer
+	logOut io.Writer
 }
 
 func (l *logger) Log() logrus.FieldLogger {
@@ -38,9 +39,9 @@ func (l *logger) Message(msg string, args ...interface{}) {
 }
 
 func (l *logger) Dump(msg string) {
-	fmt.Fprintf(l.out, "%v:\n", l.path)
-	l.out.Write([]byte(msg))
-	l.out.Write([]byte("\n"))
+	fmt.Fprintf(l.logOut, "%v:\n", l.path)
+	l.logOut.Write([]byte(msg))
+	l.logOut.Write([]byte("\n"))
 }
 
 func (l *logger) Stop(err error) {
@@ -52,11 +53,11 @@ func (l *logger) Stop(err error) {
 }
 
 func (l *logger) CloneFor(path string) Logger {
-	return &logger{path, l.log.WithField("path", path), l.out}
+	return &logger{path, l.log.WithField("path", path), l.out, l.logOut}
 }
 
 func (l *logger) Clone() Logger {
-	return &logger{l.path, l.log, l.out}
+	return &logger{l.path, l.log, l.out, l.logOut}
 }
 
 type logBuilder struct {
@@ -82,5 +83,5 @@ func (lb *logBuilder) WithLevel(level string) *logBuilder {
 }
 
 func (lb *logBuilder) Logger() Logger {
-	return &logger{"", lb.log, os.Stdout}
+	return &logger{"", lb.log, os.Stdout, lb.log.Out}
 }
