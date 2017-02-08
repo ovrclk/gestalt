@@ -42,16 +42,12 @@ func (l *logger) Message(msg string, args ...interface{}) {
 }
 
 func (l *logger) Dump(msg string) {
-	fmt.Fprintf(l.logOut, "%v:\n", l.path)
-
 	scanner := bufio.NewScanner(bytes.NewBuffer([]byte(msg)))
-
 	for scanner.Scan() {
 		color.New(color.FgWhite, color.Bold).Fprintf(l.logOut, "%v: ", l.path)
 		l.logOut.Write(scanner.Bytes())
 		l.logOut.Write([]byte("\n"))
 	}
-
 }
 
 func (l *logger) Stop(err error) {
