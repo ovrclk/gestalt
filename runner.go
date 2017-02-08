@@ -245,19 +245,24 @@ func (r *runner) showUnresolvedVars(opts *options, vars vars.Vars) error {
 func (r *runner) createDebugger(donech <-chan interface{}) *debugHandler {
 	debugger := newDebugHandler(os.Stdin, os.Stdout)
 
+	sigs := []os.Signal{
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	}
+
 	go func() {
 		sigch := make(chan os.Signal)
-		signal.Notify(sigch)
+		signal.Notify(sigch, sigs...)
 		defer close(sigch)
 		defer signal.Stop(sigch)
 
 		for {
 			select {
 			case sig := <-sigch:
-				if sig != syscall.SIGCHLD {
-					fmt.Printf("\nreceived signal %v\n", sig)
-					debugger.Interrupt()
-				}
+				fmt.Printf("\nreceived signal %v\n", sig)
+				debugger.Interrupt()
 			case <-donech:
 				return
 			}
