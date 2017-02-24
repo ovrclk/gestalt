@@ -19,7 +19,7 @@ func DevServer() gestalt.Component {
 // create a new farm
 func GroupUp() gestalt.Component {
 	check := g.SH("check", "echo", "a", "{{group-name}}-id", "b").
-		FN(g.P().Capture("_", "group-host", "_")).
+		FN(g.Capture("_", "group-host", "_")).
 		WithMeta(g.Export("group-host"))
 	return g.Group("group-up").
 		Run(

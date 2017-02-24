@@ -49,12 +49,14 @@ func EXEC(name, cmd string, args ...string) exec.Cmd {
 	return exec.EXEC(name, cmd, args...)
 }
 
-func Columns(columns ...string) exec.ObjectPipe {
-	return exec.ParseColumns(columns...)
+func Capture(columns ...string) exec.CmdFn {
+	return Columns(columns...).
+		EnsureCount(1).
+		CaptureAll()
 }
 
-func P() exec.TextPipe {
-	return exec.P()
+func Columns(columns ...string) exec.Pipeline {
+	return exec.ParseColumns(columns...)
 }
 
 func Require(args ...string) vars.Meta {

@@ -85,7 +85,7 @@ func TestCliVars(t *testing.T) {
 
 func TextExpand(t *testing.T) {
 	producer := g.SH("producer", "echo", "{{host}}", "bar", "baz").
-		FN(g.P().Capture("a", "b", "c")).
+		FN(g.Capture("a", "b", "c")).
 		WithMeta(g.Export("a", "b", "c").Require("host"))
 
 	suite := g.Suite("suite").
@@ -117,7 +117,7 @@ func TestDump(t *testing.T) {
 
 func producer(t *testing.T) gestalt.Component {
 	return g.SH("producer", "echo", "foo", "bar", "baz").
-		FN(g.P().Capture("a", "b", "c")).
+		FN(g.Capture("a", "b", "c")).
 		WithMeta(g.Export("a", "b", "c"))
 }
 
