@@ -92,3 +92,16 @@ func (c *EC) Eval(e gestalt.Evaluator) error {
 
 	return nil
 }
+
+// steps[0].Run(steps[1].Run(...steps[N]))
+func Compose(steps ...Ensure) Ensure {
+	count := len(steps)
+	if count < 1 {
+		return nil
+	}
+	current := steps[count-1]
+	for i := count - 2; i >= 0; i-- {
+		current = steps[i].Run(current)
+	}
+	return current
+}

@@ -18,6 +18,7 @@ func TestDNSLookup(t *testing.T) {
 	e.Vars().Put(ref.Name(), "google-public-dns-a.google.com")
 
 	require.NoError(t, e.Evaluate(util.DNSLookup(ref)))
+	require.Empty(t, e.Errors())
 
 	assert.True(t, e.Vars().Has("host-ip"))
 	assert.Equal(t, "8.8.8.8", e.Vars().Get("host-ip"))
@@ -38,6 +39,7 @@ func TestHTTPGet(t *testing.T) {
 		WithMeta(vars.NewMeta().Export("key", "value"))
 
 	require.NoError(t, e.Evaluate(cmp))
+	require.Empty(t, e.Errors())
 
 	assert.True(t, e.Vars().Has("key"))
 	assert.True(t, e.Vars().Has("value"))

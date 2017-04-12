@@ -72,3 +72,7 @@ func Default(k, v string) vars.Meta {
 func Ref(name string) vars.Ref {
 	return vars.NewRef(name)
 }
+
+func Compose(steps ...component.Ensure) component.Ensure {
+	return component.Compose(steps...)
+}
