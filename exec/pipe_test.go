@@ -10,9 +10,10 @@ import (
 	"github.com/ovrclk/gestalt"
 	"github.com/ovrclk/gestalt/exec"
 	"github.com/ovrclk/gestalt/vars"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestParse(t *testing.T) {
+func TestParseColumns(t *testing.T) {
 	e := newEvaluator(t)
 	p := exec.ParseColumns("a", "b")
 	b := bytes.NewBufferString("foo bar")
@@ -25,6 +26,21 @@ func TestParse(t *testing.T) {
 	if x := e.vars.Get("a"); x != "foo" {
 		t.Fatalf("invalid export: field a of %v != %v", e.vars, "foo")
 	}
+}
+
+func TestParseKV(t *testing.T) {
+	e := newEvaluator(t)
+	p := exec.ParseKV("=", "key", "value").
+		GrepField("key", "c").
+		EnsureCount(1)
+	b := bytes.NewBufferString("a=b\nc=d\n")
+	err := p.CaptureAll()(bufio.NewReader(b), e)
+	assert.NoError(t, err)
+
+	assert.True(t, e.Vars().Has("key"))
+	assert.True(t, e.Vars().Has("value"))
+	assert.Equal(t, "c", e.Vars().Get("key"))
+	assert.Equal(t, "d", e.Vars().Get("value"))
 }
 
 func TestGrepField(t *testing.T) {

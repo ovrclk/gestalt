@@ -31,24 +31,33 @@ type pipeline struct {
 	parsefn PipeParser
 }
 
-func NewObjectPipe(fn PipeParser) Pipeline {
+func NewPipeline(fn PipeParser) Pipeline {
 	return &pipeline{make([]PipeStage, 0), fn}
 }
 
 func ParseColumns(columns ...string) Pipeline {
+	return ParseColumnsWith(strings.Fields, columns...)
+}
+
+func ParseKV(sep string, columns ...string) Pipeline {
+	return ParseColumnsWith(func(line string) []string {
+		return strings.SplitN(line, sep, 2)
+	}, columns...)
+}
+
+func ParseColumnsWith(fn func(string) []string, columns ...string) Pipeline {
 	return LineParser(func(line string, _ gestalt.Evaluator) (PipeObject, error) {
-		fields := strings.Fields(line)
+		fields := fn(line)
 		obj := make(PipeObject)
 		for i := 0; i < len(columns) && i < len(fields); i++ {
 			obj[columns[i]] = fields[i]
 		}
-
 		return obj, nil
 	})
 }
 
 func LineParser(fn func(string, gestalt.Evaluator) (PipeObject, error)) Pipeline {
-	return NewObjectPipe(func(r *bufio.Reader, e gestalt.Evaluator) ([]PipeObject, error) {
+	return NewPipeline(func(r *bufio.Reader, e gestalt.Evaluator) ([]PipeObject, error) {
 		results := make([]PipeObject, 0)
 
 		scanner := bufio.NewScanner(r)
