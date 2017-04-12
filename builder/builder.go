@@ -50,9 +50,7 @@ func EXEC(name, cmd string, args ...string) exec.Cmd {
 }
 
 func Capture(columns ...string) exec.CmdFn {
-	return Columns(columns...).
-		EnsureCount(1).
-		CaptureAll()
+	return exec.Capture(columns...)
 }
 
 func Columns(columns ...string) exec.Pipeline {
