@@ -19,3 +19,7 @@ func (ref Ref) Var() string {
 func (ref Ref) String() string {
 	return string(ref)
 }
+
+func (ref Ref) Expand(vars Vars) string {
+	return Expand(vars, ref.Var())
+}
