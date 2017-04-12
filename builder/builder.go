@@ -70,3 +70,7 @@ func Export(args ...string) vars.Meta {
 func Default(k, v string) vars.Meta {
 	return vars.NewMeta().Default(k, v)
 }
+
+func Ref(name string) vars.Ref {
+	return vars.NewRef(name)
+}
