@@ -1,4 +1,4 @@
-package test
+package gestalt_test
 
 import (
 	"testing"
@@ -8,12 +8,6 @@ import (
 	"github.com/ovrclk/gestalt/vars"
 )
 
-func noop(name string) gestalt.Component {
-	return gestalt.NewComponent(name, func(_ gestalt.Evaluator) error {
-		return nil
-	})
-}
-
 func TestValidate(t *testing.T) {
 	suite := component.NewSuite("top")
 
@@ -21,27 +15,27 @@ func TestValidate(t *testing.T) {
 		t.Errorf("missing vars for empty suite")
 	}
 
-	suite.Run(noop("a"))
+	suite.Run(gestalt.NoopComponent("a"))
 
 	if missing := gestalt.Validate(suite); len(missing) > 0 {
 		t.Fail()
 	}
 
-	suite.Run(noop("b").
+	suite.Run(gestalt.NoopComponent("b").
 		WithMeta(vars.NewMeta().Export("x")))
 
 	if missing := gestalt.Validate(suite); len(missing) > 0 {
 		t.Fail()
 	}
 
-	suite.Run(noop("c").
+	suite.Run(gestalt.NoopComponent("c").
 		WithMeta(vars.NewMeta().Require("x")))
 
 	if missing := gestalt.Validate(suite); len(missing) > 0 {
 		t.Fail()
 	}
 
-	suite.Run(noop("d").
+	suite.Run(gestalt.NoopComponent("d").
 		WithMeta(vars.NewMeta().Require("y")))
 
 	if missing := gestalt.Validate(suite); len(missing) != 1 {
@@ -59,7 +53,7 @@ func TestValidate(t *testing.T) {
 	}
 
 	suite.Run(component.NewSuite("lower").
-		Run(noop("d").
+		Run(gestalt.NoopComponent("d").
 			WithMeta(vars.NewMeta().Require("y"))))
 
 	if missing := gestalt.ValidateWith(suite, input); len(missing) > 0 {

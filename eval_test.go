@@ -1,4 +1,4 @@
-package test
+package gestalt_test
 
 import (
 	"reflect"

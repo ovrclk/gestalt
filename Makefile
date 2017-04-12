@@ -1,5 +1,5 @@
 test:
-	go test -race . ./component ./exec ./vars ./test
+	go test -race . ./component ./exec ./vars
 
 example:
 	(cd example && make)
