@@ -3,6 +3,7 @@ package gestalt
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -18,6 +19,11 @@ type commandResult string
 const (
 	retryResult    commandResult = "retry"
 	continueResult commandResult = "continue"
+	quitResult     commandResult = "quit"
+)
+
+var (
+	errQuit = errors.New("debugger quit command issued")
 )
 
 type debugHandler struct {
@@ -32,6 +38,7 @@ type debugHandler struct {
 	out io.Writer
 
 	interrupt uint32
+	quitting  bool
 }
 
 func newDebugHandler(in io.Reader, out io.Writer) *debugHandler {
@@ -65,7 +72,9 @@ func (h *debugHandler) Eval(e Evaluator, node Component) error {
 	state := &debuggerState{}
 
 	if h.shouldBreak(e.Path(), h.breakpoints, "break") || h.shouldInterrupt() {
-		h.runBreakConsole(e, node, state)
+		if h.runBreakConsole(e, node, state) == quitResult {
+			return state.err
+		}
 	}
 
 	for {
@@ -123,6 +132,8 @@ func (h *debugHandler) runDebugger(
 	appBuilder func() *debugApp,
 	state *debuggerState) commandResult {
 
+	h.quitting = false
+
 	for i := 0; ; i++ {
 		app := appBuilder()
 
@@ -146,6 +157,11 @@ func (h *debugHandler) runDebugger(
 		case check(app.cmdRetry, cmd):
 			fmt.Fprintf(h.out, "retrying...\n")
 			return retryResult
+		case check(app.cmdQuit, cmd):
+			fmt.Fprintf(h.out, "quitting...\n")
+			h.quitting = true
+			state.err = errQuit
+			return quitResult
 
 		// errors
 		case check(app.cmdErrorsList, cmd):
@@ -192,6 +208,9 @@ func (h *debugHandler) runDebugger(
 }
 
 func (h *debugHandler) shouldBreak(path string, points []string, prefix string) bool {
+	if h.quitting {
+		return false
+	}
 	if idx := h.matchPath(path, points); idx >= 0 {
 		fmt := "\n%vpoint %v at %v\n"
 		color.New(color.FgYellow).Fprintf(h.out, fmt, prefix, idx, path)
@@ -247,6 +266,7 @@ type debugApp struct {
 	app         *kingpin.Application
 	cmdContinue *kingpin.CmdClause
 	cmdRetry    *kingpin.CmdClause
+	cmdQuit     *kingpin.CmdClause
 
 	// errors
 	cmdErrors     *kingpin.CmdClause
@@ -287,6 +307,8 @@ func (h *debugHandler) makeBreakApp() *debugApp {
 	app := &debugApp{app: kapp}
 	app.cmdContinue = kapp.
 		Command("continue", "continue execution").Alias("c")
+	app.cmdQuit = kapp.
+		Command("quit", "quit advancing; unwind execution").Alias("q")
 
 	app.cmdErrors = kapp.
 		Command("errors", "manage errors").Alias("e")
