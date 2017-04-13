@@ -11,8 +11,8 @@ import (
 func DNSLookup(ref vars.Ref) gestalt.Component {
 	ipVar := fmt.Sprintf("%s-ip", ref.Name())
 	return gestalt.NewComponent("dns-lookup", func(e gestalt.Evaluator) error {
-
 		host := ref.Expand(e.Vars())
+
 		hosts, err := net.LookupHost(host)
 		if err != nil {
 			return err
@@ -21,7 +21,6 @@ func DNSLookup(ref vars.Ref) gestalt.Component {
 		if len(hosts) < 1 {
 			return fmt.Errorf("dns lookup of host %v failed", host)
 		}
-		fmt.Println(hosts)
 
 		e.Vars().Put(ipVar, hosts[0])
 
