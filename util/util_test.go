@@ -19,7 +19,7 @@ func TestDNSLookup(t *testing.T) {
 		"google-public-dns-a.google.com": "8.8.8.8",
 
 		// CNAME
-		"motogp.reddit.com": "151.101.1.140",
+		//"motogp.reddit.com": "151.101.1.140",
 	}
 	ref := vars.NewRef("host")
 

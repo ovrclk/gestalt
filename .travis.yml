@@ -1,0 +1,18 @@
+language: go
+
+go:
+  - "1.9"
+  - "1.10"
+  - master
+
+sudo: false
+
+install:
+  - curl https://glide.sh/get | sh
+  - make deps-install
+  - make coverdeps-install
+
+script:
+  - make test
+  - make example
+  - if [ "$TRAVIS_GO_VERSION" == "1.10" ]; then make test-cover; fi
