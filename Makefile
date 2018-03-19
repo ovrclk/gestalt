@@ -8,8 +8,8 @@ deps-install:
 	glide install
 
 test-cover:
-	export TRAVIS_BRANCH=$${TRAVIS_PULL_REQUEST_BRANCH:-$$TRAVIS_BRANCH}; \
-		goveralls -service=travis-pro
+	go test -v -covermode=count -coverprofile=test.cov ./...
+	goveralls -coverprofile=test.cov -service=travis-pro
 
 coverdeps-install:
 	go get golang.org/x/tools/cmd/cover
