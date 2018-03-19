@@ -13,6 +13,6 @@ install:
   - make coverdeps-install
 
 script:
-  - make test
   - make example
+  - if [ "$TRAVIS_GO_VERSION" != "1.10" ]; then make test      ; fi
   - if [ "$TRAVIS_GO_VERSION" == "1.10" ]; then make test-cover; fi
