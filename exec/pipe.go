@@ -12,6 +12,7 @@ import (
 type Pipeline interface {
 	Capture(...string) CmdFn
 	CaptureAll() CmdFn
+	Done() CmdFn
 
 	GrepField(string, string) Pipeline
 	GrepWith(PipeFilter) Pipeline
@@ -145,11 +146,18 @@ func (p *pipeline) Then(fn PipeStage) *pipeline {
 	return p
 }
 
+func (p *pipeline) Done() CmdFn {
+	return p.finally(nil)
+}
+
 func (p *pipeline) finally(fn func(objs []PipeObject, e gestalt.Evaluator) error) CmdFn {
 	return func(r *bufio.Reader, e gestalt.Evaluator) error {
 		objs, err := p.process(r, e)
 		if err != nil {
 			return err
+		}
+		if fn == nil {
+			return nil
 		}
 		return fn(objs, e)
 	}
