@@ -11,52 +11,52 @@ type Group interface {
 }
 
 /* group component */
-type GC struct {
+type group struct {
 	cmp      gestalt.Component
 	terminal bool
 	children []gestalt.Component
 }
 
-func NewSuite(name string) *GC {
-	return &GC{
+func NewSuite(name string) *group {
+	return &group{
 		cmp:      gestalt.NewComponent(name, nil),
 		terminal: true,
 	}
 }
 
-func NewGroup(name string) *GC {
-	return &GC{
+func NewGroup(name string) *group {
+	return &group{
 		cmp: gestalt.NewComponent(name, nil),
 	}
 }
 
-func (c *GC) Children() []gestalt.Component {
+func (c *group) Children() []gestalt.Component {
 	return c.children
 }
 
-func (c *GC) Name() string {
+func (c *group) Name() string {
 	return c.cmp.Name()
 }
 
-func (c *GC) Meta() vars.Meta {
+func (c *group) Meta() vars.Meta {
 	return c.cmp.Meta()
 }
 
-func (c *GC) WithMeta(m vars.Meta) gestalt.Component {
+func (c *group) WithMeta(m vars.Meta) gestalt.Component {
 	c.cmp.WithMeta(m)
 	return c
 }
 
-func (c *GC) IsPassThrough() bool {
+func (c *group) IsPassThrough() bool {
 	return false
 }
 
-func (c *GC) Run(child gestalt.Component) Group {
+func (c *group) Run(child gestalt.Component) Group {
 	c.children = append(c.children, child)
 	return c
 }
 
-func (c *GC) Eval(e gestalt.Evaluator) error {
+func (c *group) Eval(e gestalt.Evaluator) error {
 
 	// evaluate children up to an error
 	for _, child := range c.Children() {

@@ -12,34 +12,34 @@ type Error interface {
 	Path() string
 }
 
-type EvalError struct {
+type evalError struct {
 	path    string
 	wrapped error
 }
 
-func NewError(path string, wrapped error) *EvalError {
-	return &EvalError{path, wrapped}
+func NewError(path string, wrapped error) *evalError {
+	return &evalError{path, wrapped}
 }
 
-func (e *EvalError) Path() string {
+func (e *evalError) Path() string {
 	return e.path
 }
 
-func (e *EvalError) Error() string {
+func (e *evalError) Error() string {
 	return fmt.Sprintf("%v: %v", e.path, e.wrapped.Error())
 }
 
-func (e *EvalError) String() string {
+func (e *evalError) String() string {
 	return e.Error()
 }
 
-func (e *EvalError) Detail() string {
+func (e *evalError) Detail() string {
 	if err, ok := e.wrapped.(ErrorWithDetail); ok {
 		return err.Detail()
 	}
 	return ""
 }
 
-func (e *EvalError) Wrapped() error {
+func (e *evalError) Wrapped() error {
 	return e.wrapped
 }

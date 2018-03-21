@@ -1,5 +1,5 @@
 test:
-	go test -v $$(glide novendor)
+	go test $$(glide novendor)
 
 example:
 	(cd example && make)
@@ -8,7 +8,7 @@ deps-install:
 	glide install
 
 test-cover:
-	go test -v -covermode=count -coverprofile=test.cov ./...
+	go test -covermode=count -coverprofile=test.cov ./...
 	goveralls -coverprofile=test.cov -service=travis-pro
 
 coverdeps-install:

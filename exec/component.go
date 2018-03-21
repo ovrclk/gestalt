@@ -22,63 +22,63 @@ type Cmd interface {
 	WorkingDir(string) Cmd
 }
 
-type CC struct {
+type cmd struct {
 	cmp  gestalt.Component
-	Path string
-	Dir  string
-	Args []string
-	Env  []string
+	path string
+	dir  string
+	args []string
+	env  []string
 
 	fn CmdFn
 }
 
 func NewCmd(name string, path string, args []string) Cmd {
-	return &CC{
+	return &cmd{
 		cmp:  gestalt.NewComponent(name, nil),
-		Path: path,
-		Args: args,
+		path: path,
+		args: args,
 	}
 }
 
-func (c *CC) Name() string {
+func (c *cmd) Name() string {
 	return c.cmp.Name()
 }
 
-func (c *CC) IsPassThrough() bool {
+func (c *cmd) IsPassThrough() bool {
 	return false
 }
 
-func (c *CC) WithMeta(m vars.Meta) gestalt.Component {
+func (c *cmd) WithMeta(m vars.Meta) gestalt.Component {
 	c.cmp.WithMeta(m)
 	return c
 }
 
-func (c *CC) Meta() vars.Meta {
+func (c *cmd) Meta() vars.Meta {
 	return c.cmp.Meta()
 }
 
-func (c *CC) FN(fn CmdFn) Cmd {
+func (c *cmd) FN(fn CmdFn) Cmd {
 	c.fn = fn
 	return c
 }
 
-func (c *CC) WorkingDir(dir string) Cmd {
-	c.Dir = dir
+func (c *cmd) WorkingDir(dir string) Cmd {
+	c.dir = dir
 	return c
 }
 
-func (c *CC) Eval(e gestalt.Evaluator) error {
+func (c *cmd) Eval(e gestalt.Evaluator) error {
 
-	path := vars.Expand(e.Vars(), c.Path)
-	args := make([]string, len(c.Args))
+	path := vars.Expand(e.Vars(), c.path)
+	args := make([]string, len(c.args))
 
-	for i, v := range c.Args {
+	for i, v := range c.args {
 		args[i] = vars.Expand(e.Vars(), v)
 	}
 
 	cmd := exec.CommandContext(e.Context(), path, args...)
 
-	cmd.Dir = vars.Expand(e.Vars(), c.Dir)
+	cmd.Dir = vars.Expand(e.Vars(), c.dir)
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -128,7 +128,7 @@ func (c *CC) Eval(e gestalt.Evaluator) error {
 	return nil
 }
 
-func (c *CC) copyStdout() bool {
+func (c *cmd) copyStdout() bool {
 	return c.fn != nil
 }
 

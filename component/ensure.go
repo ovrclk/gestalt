@@ -12,7 +12,7 @@ type Ensure interface {
 	Finally(gestalt.Component) Ensure
 }
 
-type EC struct {
+type ensure struct {
 	cmp gestalt.Component
 
 	pre      gestalt.Component
@@ -20,45 +20,45 @@ type EC struct {
 	post     gestalt.Component
 }
 
-func NewEnsure(name string) *EC {
-	return &EC{
+func NewEnsure(name string) *ensure {
+	return &ensure{
 		cmp: gestalt.NewComponent(name, nil),
 	}
 }
 
-func (c *EC) First(child gestalt.Component) Ensure {
+func (c *ensure) First(child gestalt.Component) Ensure {
 	c.pre = child
 	return c
 }
 
-func (c *EC) Run(child gestalt.Component) Ensure {
+func (c *ensure) Run(child gestalt.Component) Ensure {
 	c.children = append(c.children, child)
 	return c
 }
 
-func (c *EC) Finally(child gestalt.Component) Ensure {
+func (c *ensure) Finally(child gestalt.Component) Ensure {
 	c.post = child
 	return c
 }
 
-func (c *EC) Name() string {
+func (c *ensure) Name() string {
 	return c.cmp.Name()
 }
 
-func (c *EC) Meta() vars.Meta {
+func (c *ensure) Meta() vars.Meta {
 	return c.cmp.Meta()
 }
 
-func (c *EC) WithMeta(m vars.Meta) gestalt.Component {
+func (c *ensure) WithMeta(m vars.Meta) gestalt.Component {
 	c.cmp.WithMeta(m)
 	return c
 }
 
-func (c *EC) IsPassThrough() bool {
+func (c *ensure) IsPassThrough() bool {
 	return true
 }
 
-func (c *EC) Children() []gestalt.Component {
+func (c *ensure) Children() []gestalt.Component {
 	children := make([]gestalt.Component, 0)
 	if c.pre != nil {
 		children = append(children, c.pre)
@@ -70,7 +70,7 @@ func (c *EC) Children() []gestalt.Component {
 	return children
 }
 
-func (c *EC) Eval(e gestalt.Evaluator) error {
+func (c *ensure) Eval(e gestalt.Evaluator) error {
 	if c.pre != nil {
 		e.Evaluate(c.pre)
 	}

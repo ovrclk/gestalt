@@ -15,7 +15,7 @@ type Wrap interface {
 }
 
 /* wrapped */
-type WC struct {
+type wrap struct {
 	cmp     gestalt.Component
 	wrapper WrapFn
 	child   gestalt.Component
@@ -23,14 +23,14 @@ type WC struct {
 
 type WrapFn func(Wrap, gestalt.Evaluator) error
 
-func NewWrap(name string, wrapper WrapFn) *WC {
-	return &WC{
+func NewWrap(name string, wrapper WrapFn) *wrap {
+	return &wrap{
 		cmp:     gestalt.NewComponent(name, nil),
 		wrapper: wrapper,
 	}
 }
 
-func NewRetry(tries int, delay time.Duration) *WC {
+func NewRetry(tries int, delay time.Duration) *wrap {
 	return NewWrap(
 		"retry",
 		func(c Wrap, e gestalt.Evaluator) error {
@@ -55,13 +55,13 @@ func NewRetry(tries int, delay time.Duration) *WC {
 		})
 }
 
-func NewBG() *WC {
+func NewBG() *wrap {
 	return NewWrap("background", func(c Wrap, e gestalt.Evaluator) error {
 		return e.Fork(c.Child())
 	})
 }
 
-func NewIgnore() *WC {
+func NewIgnore() *wrap {
 	return NewWrap("ignore", func(c Wrap, e gestalt.Evaluator) error {
 		e.Evaluate(c.Child())
 		e.ClearError()
@@ -69,19 +69,19 @@ func NewIgnore() *WC {
 	})
 }
 
-func (c *WC) Eval(e gestalt.Evaluator) error {
+func (c *wrap) Eval(e gestalt.Evaluator) error {
 	return c.wrapper(c, e)
 }
 
-func (c *WC) IsPassThrough() bool {
+func (c *wrap) IsPassThrough() bool {
 	return true
 }
 
-func (c *WC) Name() string {
+func (c *wrap) Name() string {
 	return fmt.Sprintf("%v.%v", c.Child().Name(), c.cmp.Name())
 }
 
-func (c *WC) Meta() vars.Meta {
+func (c *wrap) Meta() vars.Meta {
 	m := c.cmp.Meta()
 	for _, child := range c.Children() {
 		m = m.Merge(child.Meta())
@@ -89,20 +89,20 @@ func (c *WC) Meta() vars.Meta {
 	return m
 }
 
-func (c *WC) WithMeta(m vars.Meta) gestalt.Component {
+func (c *wrap) WithMeta(m vars.Meta) gestalt.Component {
 	c.cmp.WithMeta(m)
 	return c
 }
 
-func (c *WC) Children() []gestalt.Component {
+func (c *wrap) Children() []gestalt.Component {
 	return []gestalt.Component{c.Child()}
 }
 
-func (c *WC) Child() gestalt.Component {
+func (c *wrap) Child() gestalt.Component {
 	return c.child
 }
 
-func (c *WC) Run(child gestalt.Component) gestalt.Component {
+func (c *wrap) Run(child gestalt.Component) gestalt.Component {
 	c.child = child
 	return c
 }
