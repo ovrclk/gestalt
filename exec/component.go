@@ -149,7 +149,7 @@ func logStream(reader io.ReadCloser, log func(string), b *bytes.Buffer) {
 		}
 
 		if n > 0 {
-			log(string(buf[0:n]))
+			//log(string(buf[0:n]))
 		}
 	}
 }
