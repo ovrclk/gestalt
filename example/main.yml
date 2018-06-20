@@ -1,0 +1,99 @@
+
+- name: dev-server
+  type: group
+  run:
+
+    - name: cleanup
+      type: sh
+      args: ["echo","cleanup"]
+
+    - bg:
+      - name: start
+        type: sh
+        args: "while true; do echo .; sleep 1; done"
+
+    - sh: wait
+      args: ["sleep", "10"]
+
+    - compose:
+        - retry: 5
+        - sh: check
+          args: ["echo","check"]
+
+- name: group-up
+  type: group
+  require: group-name
+  export:  group-host
+  run:
+    - sh: create
+      args: [ "echo", "create-group", "{{group-name}}" ]
+    - compose:
+      - retry: 30
+      - sh: check
+        args: [ "echo", "a", "{{group-name}}-id", "b" ]
+        run:
+          - capture: ["_","group-host","_"]
+        export: group-host
+
+- name: group-down
+  type: group
+  require: group-name
+  run:
+    - sh: down
+      args: [ "echo", "group:down", "{{group-name}}" ]
+
+- name: groups
+  type: ensure
+  first:   group-up
+  finally: group-down
+
+- name: user-up
+  type: group
+  require: [ "group-host", "user-name" ]
+  export: user-host
+  run:
+    - sh: create
+      args: [ "{{group-host}}", "user:create", "{{user-name}}" ]
+
+    - compose:
+      - retry: 30
+      - sh: get
+        args: [ "echo", "{{group-host}}-user" ]
+        run:
+          - columns: "user-host"
+          - count: 1
+          - capture: "user-host"
+        - export: user-host
+
+    - compose:
+      - retry: 30
+      - sh: check
+        args: [ "echo", "ping {{user-host}}" ]
+
+- name: user-down
+  type: group
+  require: [ "group-host", "user-name" ]
+  run:
+    - sh: delete
+      args:
+        - echo
+        - delete
+        - "{{group-host}}"
+        - "user:down"
+        - "{{user-name}}"
+
+- name: users
+  type: ensure
+  first: user-up
+  finally: user-down
+
+- name: app
+  type: suite
+  require:
+    - group-name
+    - user-name
+  run: 
+    - dev-server
+    - compose:
+      - groups
+      - users
