@@ -2,37 +2,54 @@ package parse
 
 import (
 	"fmt"
+)
 
-	"github.com/ovrclk/gestalt"
+var (
+	ErrNotFound = fmt.Errorf("Not Found")
 )
 
 type Registry interface {
-	Register(name string, fn ParseFn) error
+	Register(typ string, parser Parser) error
+	Lookup(typ string) (Parser, error)
 }
 
-type registry map[string]ParseFn
+type registry map[string]Parser
 
 func NewRegistry() Registry {
 	return make(registry)
 }
 
-type ParseFn func() (gestalt.Component, error)
-
-func (r registry) Register(name string, fn ParseFn) error {
-	if _, ok := r[name]; ok {
+func (r registry) Register(typ string, parser Parser) error {
+	if _, ok := r[typ]; ok {
 		return fmt.Errorf("registry error: %v already exists", name)
 	}
-	r[name] = fn
+	r[typ] = parser
 	return nil
 }
 
-type Parser interface {
-	Lookup(name string) (ParseFn, error)
+func (r registry) Lookup(typ string) (Parser, error) {
+	parser, ok := r[typ]
+	if !ok {
+		return parser, ErrNotFound
+	}
+	return parser, nil
 }
 
-type parser struct {
+type DefinitionSpec struct {
+	Anonymous      bool
+	AcceptArgs     bool
+	AcceptChildren bool
 }
 
-func (p parser) Parse(data []byte) error {
-	return nil
+type DeclSpec struct {
+	Type string
+	Name string
+
+	Args []string
+	Run  []DeclSpec
+
+	Require []string
+	Export  []string
 }
+
+// Parse() -> Builder() -> Component()
