@@ -21,7 +21,7 @@ func NewRegistry() Registry {
 
 func (r registry) Register(typ string, parser Parser) error {
 	if _, ok := r[typ]; ok {
-		return fmt.Errorf("registry error: %v already exists", name)
+		return fmt.Errorf("registry error: %v already exists", typ)
 	}
 	r[typ] = parser
 	return nil
