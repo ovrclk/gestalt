@@ -6,7 +6,7 @@ example:
 
 test-cover:
 	go test -race -coverprofile=coverage.txt -covermode=atomic ./...
-	bash <(curl -s https://codecov.io/bash)
+	curl -s https://codecov.io/bash | bash
 
 clean:
 	(cd example && make clean)
