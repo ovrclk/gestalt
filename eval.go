@@ -3,8 +3,8 @@ package gestalt
 import (
 	"context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt/vars"
+	"github.com/sirupsen/logrus"
 )
 
 type Evaluator interface {

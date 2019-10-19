@@ -1,11 +1,8 @@
 test:
-	go test $$(glide novendor)
+	go test ./...
 
 example:
 	(cd example && make)
-
-deps-install:
-	glide install
 
 test-cover:
 	go test -covermode=count -coverprofile=test.cov ./...

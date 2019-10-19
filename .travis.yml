@@ -1,18 +1,20 @@
 language: go
 
 go:
-  - "1.9"
-  - "1.10"
+  - 1.12
+  - 1.13
   - master
 
 sudo: false
 
+env:
+  - GO111MODULE=on
+
 install:
-  - curl https://glide.sh/get | sh
-  - make deps-install
+  - go mod download
   - make coverdeps-install
 
 script:
   - make example
-  - if [ "$TRAVIS_GO_VERSION" != "1.10" ]; then make test      ; fi
-  - if [ "$TRAVIS_GO_VERSION" == "1.10" ]; then make test-cover; fi
+  - if [ "$TRAVIS_GO_VERSION" != "1.13" ]; then make test      ; fi
+  - if [ "$TRAVIS_GO_VERSION" == "1.13" ]; then make test-cover; fi

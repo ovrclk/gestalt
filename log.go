@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/fatih/color"
+	"github.com/sirupsen/logrus"
 )
 
 type Logger interface {

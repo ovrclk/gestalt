@@ -6,10 +6,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/ovrclk/gestalt"
 	"github.com/ovrclk/gestalt/exec"
 	"github.com/ovrclk/gestalt/vars"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
