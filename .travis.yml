@@ -12,7 +12,6 @@ env:
 
 install:
   - go mod download
-  - make coverdeps-install
 
 script:
   - make example
